@@ -24,9 +24,22 @@ import { findShopItem } from "./shop.js";
 import { localTrips } from "./tracking.js";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:5000/api",
+  // Production serves frontend + API from the same origin, so a relative
+  // path works there (and survives domain renames). Local dev uses Vite on
+  // :5173 with the API on :5000, so keep the localhost default there.
+  // VITE_API_URL overrides both when explicitly set.
+  baseURL:
+    import.meta.env.VITE_API_URL ??
+    (import.meta.env.DEV ? "http://localhost:5000/api" : "/api"),
   timeout: 15000
 });
+
+export function getApiBase() {
+  return (
+    import.meta.env.VITE_API_URL ??
+    (import.meta.env.DEV ? "http://localhost:5000/api" : "/api")
+  );
+}
 
 export async function fetchDashboard(userId) {
   try {

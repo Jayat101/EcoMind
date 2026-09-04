@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, AlertCircle, Check, CheckCircle2, ChevronRight, DownloadCloud, Loader2, Lock, RefreshCw, Route, ShieldCheck, Smartphone, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { disconnectGoogleFit, fetchGoogleFitActivities, importActivities } from "../services/api.js";
+import { disconnectGoogleFit, fetchGoogleFitActivities, getApiBase, importActivities } from "../services/api.js";
 import { MODE_FACTORS } from "../services/alternatives.js";
 import { generateImportActivities, IMPORT_SOURCES } from "../services/importData.js";
 
@@ -39,7 +39,7 @@ function ConnectModal({ source, userId, userName, userEmail, onClose, onConnecte
     setConfirming(true);
 
     if (source.id === "google_fit") {
-      const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+      const apiBase = getApiBase();
       window.location.href = `${apiBase}/integrations/googlefit/auth?userId=${encodeURIComponent(userId ?? "")}`;
       return;
     }
@@ -315,7 +315,7 @@ export default function ImportPanel({ userId, profile = {}, onImported }) {
                   type="button"
                   onClick={() => {
                     if (source.id === "google_fit" && !isConnected) {
-                      const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+                      const apiBase = getApiBase();
                       window.location.href = `${apiBase}/integrations/googlefit/auth?userId=${encodeURIComponent(userId ?? "")}`;
                     } else {
                       setOauthSource(source);
