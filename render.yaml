@@ -32,11 +32,13 @@ services:
         sync: false
       - key: EMAIL_PASS
         sync: false
+      # Google Sign-In (frontend, baked in at build time)
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false
-      - key: GOOGLE_CLIENT_ID
+      # Google Fit OAuth (backend)
+      - key: GOOGLE_FIT_CLIENT_ID
         sync: false
-      - key: GOOGLE_CLIENT_SECRET
+      - key: GOOGLE_FIT_CLIENT_SECRET
         sync: false
-      - key: GOOGLE_REDIRECT_URI
+      - key: GOOGLE_FIT_REDIRECT_URI
         sync: false
