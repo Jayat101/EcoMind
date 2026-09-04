@@ -1,0 +1,42 @@
+# Render Blueprint — deploy EcoMind as a single free web service.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Steps:
+#   1. Create a free MongoDB Atlas cluster and copy its connection string.
+#   2. Push this repo to GitHub.
+#   3. In Render: New -> Blueprint, connect the repo, follow the prompts.
+#      Render auto-creates the service and asks you to set secrets
+#      (MONGODB_URI, EMAIL_USER, EMAIL_PASS, google OAuth, etc.) on first deploy.
+
+services:
+  - type: web
+    name: ecomind
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:server
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        value: https://ecomind.onrender.com
+      - key: MONGODB_DB
+        value: ecomind
+      # Secrets — set these in Render dashboard on first deploy (sync: false
+      # means Render prompts you instead of committing a placeholder).
+      - key: MONGODB_URI
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false

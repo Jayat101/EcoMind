@@ -1,0 +1,28 @@
+{
+  "name": "EcoMind",
+  "short_name": "EcoMind",
+  "description": "Personal Carbon Intelligence - track your emissions, earn eco rewards, and reduce your footprint.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B3D26",
+  "theme_color": "#0F5132",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

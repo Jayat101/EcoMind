@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F4FBF7"/>
+      <stop offset="100%" stop-color="#C9EADB"/>
+    </linearGradient>
+    <radialGradient id="shieldG" cx="35%" cy="25%" r="90%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#064E3B"/>
+    </radialGradient>
+    <linearGradient id="leafG" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#BBF7D0"/>
+    </linearGradient>
+    <clipPath id="shieldClip"><path d="M256 108 L372 148 V250 C372 330 324 386 256 410 C188 386 140 330 140 250 V148 Z"/></clipPath>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#badge)"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="#0F5132" stroke-opacity="0.25" stroke-width="5"/>
+  <g clip-path="url(#shieldClip)">
+    <path d="M256 108 L372 148 V250 C372 330 324 386 256 410 C188 386 140 330 140 250 V148 Z" fill="url(#shieldG)"/>
+    <path d="M140 150 Q256 120 372 150 L372 208 Q256 178 140 208 Z" fill="#FFFFFF" opacity="0.22"/>
+    <path d="M256 196 Q256 260 256 398" stroke="#FFFFFF" stroke-width="6" opacity="0.25" fill="none"/>
+  </g>
+  <path d="M256 108 L372 148 V250 C372 330 324 386 256 410 C188 386 140 330 140 250 V148 Z" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="7"/>
+  <circle cx="168" cy="190" r="7" fill="#FFFFFF" opacity="0.5"/>
+  <circle cx="344" cy="190" r="7" fill="#FFFFFF" opacity="0.5"/>
+  <path d="M256 306 C222 268 214 220 230 182 C240 154 249 141 256 133 C263 141 272 154 282 182 C298 220 290 268 256 306 Z" fill="url(#leafG)"/>
+  <path d="M256 298 V146" stroke="#0F5132" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+  <path d="M256 246 C244 240 234 228 228 214" stroke="#0F5132" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+  <path d="M256 246 C268 240 278 228 284 214" stroke="#0F5132" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+  <path d="M256 204 C244 198 236 190 232 180" stroke="#0F5132" stroke-width="4" stroke-linecap="round" opacity="0.35"/>
+  <path d="M256 204 C268 198 276 190 280 180" stroke="#0F5132" stroke-width="4" stroke-linecap="round" opacity="0.35"/>
+</svg>

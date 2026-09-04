@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output (Render rebuilds from source)
+dist/
+
+# Secrets — NEVER commit. Set these in Render dashboard as env vars.
+.env
+**/.env
+
+# Local JSON database (real user data + password hashes)
+server/src/data/db.json
+server/data/db.json
+
+# Logs
+*.log
+dev-err.log
+dev-out.log
+start-test.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

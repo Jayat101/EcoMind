@@ -1,0 +1,70 @@
+ECOMMIND - HOW TO START THE PROJECT
+====================================
+
+OPTION 1 - EASIEST (Windows)
+----------------------------
+Double-click the file:   start.bat
+
+It installs dependencies if needed, then starts both the
+frontend and backend at the same time.
+
+  - Web app (frontend):  http://localhost:5173
+  - API (backend):       http://localhost:5000
+
+To stop: press Ctrl+C in the terminal window.
+
+
+OPTION 2 - MANUAL (step by step in a terminal)
+----------------------------------------------
+Open a terminal (Command Prompt / PowerShell) and run:
+
+  Step 1 - go to the project folder:
+  cd "C:\Users\notpr\Documents\MAJOR PROJECT FINAL"
+
+  Step 2 - install dependencies (only the first time):
+  npm install
+
+  Step 3 - start the whole project (frontend + backend together):
+  npm run dev
+
+  Both servers start at the same time:
+    - Frontend: http://localhost:5173
+    - Backend:  http://localhost:5000
+
+
+OPTION 3 - RUN EACH PART SEPARATELY
+-----------------------------------
+If you want two separate terminals:
+
+  Terminal 1 (backend/API):
+    cd "C:\Users\notpr\Documents\MAJOR PROJECT FINAL"
+    npm run dev:server
+
+  Terminal 2 (frontend/client):
+    cd "C:\Users\notpr\Documents\MAJOR PROJECT FINAL"
+    npm run dev:client
+
+  Frontend: http://localhost:5173   (open this in your browser)
+  Backend:  http://localhost:5000
+
+
+OTHER USEFUL COMMANDS
+---------------------
+  npm run build          -> build the frontend for production
+  npm run preview        -> preview the production build
+  npm run start:server   -> start only the backend (no hot reload)
+
+If port 5173 is already in use, Vite will automatically pick
+another port (e.g. 5174) and print it in the terminal.
+
+
+LIVE GPS TRIP TRACKER (no setup required)
+-----------------------------------------
+The Travel section includes a live GPS tracker that shows your
+location as a blip on an OpenStreetMap map (Leaflet — free, no API
+key, no billing) and measures the distance you travel.
+
+  - Allow location access in your browser when prompted.
+  - The live map + location blip works immediately.
+  - Trips you track can be added to your carbon log.
+  - No Google Cloud account, API key, or payment needed.
