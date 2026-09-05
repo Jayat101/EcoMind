@@ -194,6 +194,37 @@ select option {
   transition: all 0.3s ease;
 }
 
+/* Mobile polish: iOS zooms into any focused input smaller than 16px,
+   which makes long forms feel jumpy. Keep touch sizes comfy and
+   tighten card padding so content isn't wasted on small screens. */
+@media (max-width: 640px) {
+  .workspace-card {
+    border-radius: 20px;
+    padding: 1rem;
+  }
+
+  .section-card {
+    border-radius: 20px;
+    padding: 0.875rem;
+  }
+
+  .field-input,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  input[type="range"],
+  button,
+  select,
+  textarea,
+  .section-card,
+  .workspace-card {
+    touch-action: manipulation;
+  }
+}
+
 .dark .field-input {
   border-color: rgba(255, 255, 255, 0.12);
   background-color: #222832;

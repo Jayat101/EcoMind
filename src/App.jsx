@@ -1243,20 +1243,20 @@ export default function App() {
         onSave={handleUpdateProfile}
       />
 
-      <div className="grid min-h-[calc(100vh-1rem)] grid-cols-[68px_minmax(0,1fr)] gap-3 sm:min-h-[calc(100vh-2rem)] sm:grid-cols-[78px_minmax(0,1fr)] sm:gap-4">
+      <div className="grid min-h-[calc(100vh-0.5rem)] grid-cols-[64px_minmax(0,1fr)] gap-2 p-1.5 sm:min-h-[calc(100vh-2rem)] sm:grid-cols-[78px_minmax(0,1fr)] sm:gap-4 sm:p-2">
         <motion.aside
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          className="sticky top-2 flex h-[calc(100vh-1rem)] flex-col items-center rounded-[28px] bg-[#15171b] p-2 text-white sm:top-4 sm:h-[calc(100vh-2rem)] sm:p-3 shadow-xl"
+          className="sticky top-1.5 flex h-[calc(100vh-0.75rem)] flex-col items-center rounded-[28px] bg-[#15171b] p-1.5 text-white sm:top-4 sm:h-[calc(100vh-2rem)] sm:p-3 shadow-xl"
         >
           <button
             type="button"
             onClick={() => changeSection("overview")}
-            className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 transition hover:bg-white/10"
+            className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 transition hover:bg-white/10 sm:mb-6 sm:h-12 sm:w-12"
             aria-label="Go to overview"
             title="Overview"
           >
-            <img src="/favicon.svg" alt="EcoMind" className="h-10 w-10" />
+            <img src="/favicon.svg" alt="EcoMind" className="h-9 w-9 sm:h-10 sm:w-10" />
           </button>
 
           <nav className="nav-scroll flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto" aria-label="Main sections">
@@ -1269,7 +1269,7 @@ export default function App() {
                   key={item.id}
                   type="button"
                   onClick={() => changeSection(item.id)}
-                  className={`group relative flex h-12 w-12 items-center justify-center rounded-2xl transition ${
+                  className={`group relative flex h-11 w-11 items-center justify-center rounded-2xl transition sm:h-12 sm:w-12 ${
                     active
                       ? "bg-[#0f5132] text-white shadow-[0_6px_20px_rgba(15,81,50,0.4)]"
                       : "text-white/72 hover:bg-white/12 hover:text-white"
@@ -1293,7 +1293,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setShowOnboarding(true)}
-            className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white transition hover:bg-white/25"
+            className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white transition hover:bg-white/25 sm:h-12 sm:w-12"
             title="Open Guided Tour"
             aria-label="Guided Tour"
           >
@@ -1303,7 +1303,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setShowAboutModal(true)}
-            className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f5132,#5f8f73)] p-1 transition hover:brightness-110"
+            className="mb-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f5132,#5f8f73)] p-1 transition hover:brightness-110 sm:h-11 sm:w-11"
             title="Our Mission & Motto"
             aria-label="Our Mission & Motto"
           >
@@ -1321,7 +1321,7 @@ export default function App() {
             className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto]"
           >
             <motion.div variants={riseIn}>
-              <h1 className="max-w-3xl text-5xl font-medium leading-[0.94] tracking-[-0.04em] text-black md:text-7xl dark:text-white">
+              <h1 className="max-w-3xl text-3xl font-medium leading-[0.94] tracking-[-0.04em] text-black sm:text-5xl md:text-7xl dark:text-white">
                 {meta.title}
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-black/52 dark:text-white/52">{meta.subtitle}</p>
@@ -1455,7 +1455,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -14 }}
               transition={{ duration: 0.22 }}
-              className="mt-6"
+              className="mt-4 sm:mt-6"
             >
               {activeSection === "overview" && (
                 <div className="space-y-6">
@@ -1592,11 +1592,11 @@ export default function App() {
 
               {activeSection === "travel" && (
                 <Suspense fallback={<SectionLoader />}>
-                  <div className="mb-5 flex items-center gap-2">
+                  <div className="mb-4 flex flex-wrap items-center gap-2 sm:mb-5">
                     <button
                       type="button"
                       onClick={() => setTravelTab("track")}
-                      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                      className={`rounded-2xl px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
                         travelTab === "track"
                           ? "bg-[#0f5132] text-white dark:bg-emerald-600"
                           : "bg-white text-black/60 hover:bg-black/5 dark:bg-[#222832] dark:text-white/60 dark:hover:bg-white/10"
@@ -1607,7 +1607,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setTravelTab("alternatives")}
-                      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                      className={`rounded-2xl px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
                         travelTab === "alternatives"
                           ? "bg-[#0f5132] text-white dark:bg-emerald-600"
                           : "bg-white text-black/60 hover:bg-black/5 dark:bg-[#222832] dark:text-white/60 dark:hover:bg-white/10"
@@ -1618,7 +1618,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setTravelTab("history")}
-                      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                      className={`rounded-2xl px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
                         travelTab === "history"
                           ? "bg-[#0f5132] text-white dark:bg-emerald-600"
                           : "bg-white text-black/60 hover:bg-black/5 dark:bg-[#222832] dark:text-white/60 dark:hover:bg-white/10"
