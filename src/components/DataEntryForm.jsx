@@ -336,7 +336,9 @@ export default function DataEntryForm({ userId, onLogged, onSubmitted, onCancelE
 
         <motion.label variants={formItem} className="block">
           <span className="field-label">Log Date</span>
-          <input className="field-input mt-2" type="date" name="date" value={form.date} onChange={updateField} />
+          <span className="field-date-wrap mt-2">
+            <input className="field-date" type="date" name="date" value={form.date} onChange={updateField} />
+          </span>
         </motion.label>
 
         {/* Transportation Section */}

@@ -1511,7 +1511,7 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="grid gap-6 lg:grid-cols-12">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                     <div className="lg:col-span-8">
                       <StatisticsPanel trend={dashboard?.trend ?? []} />
                     </div>
@@ -1520,7 +1520,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="grid gap-6 lg:grid-cols-12">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                     <div className="lg:col-span-6">
                       <ForecastPanel forecast={dashboard?.forecast ?? []} />
                     </div>
@@ -1564,7 +1564,7 @@ export default function App() {
 
               {activeSection === "insights" && (
                 <div className="space-y-6">
-                  <div className="grid gap-6 lg:grid-cols-12">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                     <div className="lg:col-span-6">
                       <Recommendations recommendations={recommendations} />
                     </div>
@@ -1575,7 +1575,7 @@ export default function App() {
                   {isPremium ? (
                     <>
                       <PremiumBanner premiumUntil={premiumUntil} />
-                      <div className="grid gap-6 lg:grid-cols-12">
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                         <div className="lg:col-span-6">
                           <ExtendedForecastPanel trend={dashboard?.trend ?? []} />
                         </div>
