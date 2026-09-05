@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Award, BarChart3, BookOpen, Bot, ChevronDown, ClipboardList, Clock, Download, DownloadCloud, HelpCircle, Leaf, Loader2, Lock, LogIn, LogOut, Map as MapIcon, Palette, Plus, RotateCcw, ShoppingBag, Snowflake, Sparkles, Star, Trophy, UserCheck, Users } from "lucide-react";
+import { Award, BarChart3, BookOpen, Bot, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock, Download, DownloadCloud, HelpCircle, Leaf, Loader2, Lock, LogIn, LogOut, Map as MapIcon, Palette, Plus, RotateCcw, ShoppingBag, Snowflake, Sparkles, Star, Trophy, UserCheck, Users } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import ActivityHistory from "./components/ActivityHistory.jsx";
@@ -11,7 +11,7 @@ import LandingPage from "./components/LandingPage.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
 import ThemeToggle from "./components/ThemeToggle.jsx";
 import { usePremiumTheme } from "./hooks/usePremiumTheme.js";
-import { fetchDashboard, fetchEntries, resetUser, upsertUser, fetchUser, deleteCarbonEntry, redeemItem, handleGoogleFitCallback, getTrackedTrips, saveTrackedTrip, deleteTrackedTrip, logTrackedTripToCarbon } from "./services/api.js";
+import { fetchDashboard, fetchEntries, resetUser, upsertUser, fetchUser, deleteCarbonEntry, redeemItem, prestigeUser, equipTitle, handleGoogleFitCallback, getTrackedTrips, saveTrackedTrip, deleteTrackedTrip, logTrackedTripToCarbon } from "./services/api.js";
 
 
 const TravelAlternativesPanel = lazy(() => import("./components/TravelAlternativesPanel.jsx"));
@@ -19,7 +19,7 @@ const CommunityPanel = lazy(() => import("./components/CommunityPanel.jsx"));
 const ImportPanel = lazy(() => import("./components/ImportPanel.jsx"));
 const TripTracker = lazy(() => import("./components/TripTracker.jsx"));
 const TripHistory = lazy(() => import("./components/TripHistory.jsx"));
-import { getBadgeCatalog } from "./services/badges.js";
+import { getBadgeCatalog, prestigeMultiplier, prestigeTitle, TOTAL_BADGE_COUNT } from "./services/badges.js";
 import { demoDashboard } from "./services/demoData.js";
 import { downloadItemPdf } from "./services/pdf.js";
 import { findShopItem, SHOP_ITEMS } from "./services/shop.js";
@@ -412,9 +412,51 @@ function ForecastPanel({ forecast = [] }) {
   );
 }
 
-function RewardsPanel({ badges = [], rewardPoints = 0, goals = [] }) {
+function RewardsPanel({ badges = [], rewardPoints = 0, goals = [], prestigeLevel = 0, onPrestige }) {
   const catalog = getBadgeCatalog();
   const earnedByCode = new Map(badges.map((badge) => [badge.code, badge]));
+  const [pickedTier, setPickedTier] = useState(null);
+  const [slideDir, setSlideDir] = useState(1);
+  const [confirmPrestige, setConfirmPrestige] = useState(false);
+  const [prestigeBusy, setPrestigeBusy] = useState(false);
+  const prestigeEligible = earnedByCode.size >= TOTAL_BADGE_COUNT;
+  const multiplier = prestigeMultiplier(prestigeLevel);
+
+  useEffect(() => {
+    if (badges.length === 0) {
+      setPickedTier(null);
+      setConfirmPrestige(false);
+    }
+  }, [badges.length]);
+
+  async function handlePrestigeClick() {
+    if (!confirmPrestige) {
+      setConfirmPrestige(true);
+      return;
+    }
+    if (prestigeBusy) return;
+    setPrestigeBusy(true);
+    try {
+      await onPrestige?.();
+      setConfirmPrestige(false);
+    } finally {
+      setPrestigeBusy(false);
+    }
+  }
+
+  const tierStats = catalog.map((group) => {
+    const unlockedCount = group.badges.filter((badge) => earnedByCode.has(badge.code)).length;
+    return { ...group, unlockedCount, complete: unlockedCount === group.badges.length };
+  });
+  const foundOpen = tierStats.findIndex((group) => !group.complete);
+  const activeIndex = pickedTier ?? (foundOpen === -1 ? tierStats.length - 1 : foundOpen);
+  const active = tierStats[Math.min(Math.max(activeIndex, 0), tierStats.length - 1)] ?? tierStats[0];
+
+  function goTo(index, dir) {
+    if (tierStats.length === 0) return;
+    setSlideDir(dir);
+    setPickedTier((index + tierStats.length) % tierStats.length);
+  }
 
   return (
     <motion.section variants={riseIn} className="workspace-card">
@@ -457,7 +499,7 @@ function RewardsPanel({ badges = [], rewardPoints = 0, goals = [] }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-semibold text-black dark:text-white">Badge Collection</p>
           <span className="rounded-full bg-[#0f5132]/10 dark:bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-[#0f5132] dark:text-emerald-400">
-            {earnedByCode.size} / 50 unlocked
+            {earnedByCode.size} / {TOTAL_BADGE_COUNT} unlocked
           </span>
         </div>
         <p className="mt-1 text-sm text-black/45 dark:text-white/45">
@@ -465,73 +507,152 @@ function RewardsPanel({ badges = [], rewardPoints = 0, goals = [] }) {
         </p>
       </div>
 
-      <div className="space-y-8">
-        {catalog.map((group) => {
-          const unlockedCount = group.badges.filter((badge) => earnedByCode.has(badge.code)).length;
-          const unlocked = unlockedCount === group.badges.length;
-          return (
-            <div key={group.tier}>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className={`text-lg font-semibold ${unlocked ? "text-[#0f5132] dark:text-emerald-400" : "text-black dark:text-white"}`}>
-                    {group.label} <span className="text-sm font-medium text-black/40 dark:text-white/40">• {group.blurb}</span>
-                  </h3>
-                  <p className="text-xs text-black/45 dark:text-white/45">
-                    {unlockedCount} of {group.badges.length} unlocked
-                  </p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${unlocked ? "bg-[#0f5132] text-white dark:bg-emerald-600" : "bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60"}`}>
-                  {unlockedCount === group.badges.length ? "Complete" : "In progress"}
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {group.badges.map((badge) => {
-                  const earned = earnedByCode.get(badge.code);
-                  return (
-                    <motion.article
-                      key={badge.code}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: group.badges.indexOf(badge) * 0.03 }}
-                      className={`relative rounded-[24px] p-5 border transition ${
-                        earned
-                          ? "bg-[#f7faf5] border-[#0f5132]/40 dark:bg-[#222832] dark:border-emerald-500/40"
-                          : "bg-white border-black/5 dark:bg-[#181d24] dark:border-white/10 opacity-75"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
-                          earned
-                            ? "bg-[#0f5132] text-white dark:bg-emerald-600"
-                            : "bg-black/5 text-black/40 dark:bg-white/10 dark:text-white/40"
-                        }`}>
-                          {earned ? <Award size={18} /> : <Lock size={16} />}
-                        </div>
-                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                          earned
-                            ? "bg-[#0f5132]/10 text-[#0f5132] dark:bg-emerald-500/20 dark:text-emerald-400"
-                            : "bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/50"
-                        }`}>
-                          +{badge.points} pts
-                        </span>
-                      </div>
-                      <h4 className="mt-3 text-sm font-semibold text-black dark:text-white">{badge.label}</h4>
-                      <p className="mt-1 text-xs leading-5 text-black/50 dark:text-white/55">{badge.description}</p>
-                      {earned ? (
-                        <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#0f5132]/10 dark:bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-[#0f5132] dark:text-emerald-400">
-                          <Sparkles size={11} /> Unlocked
-                        </p>
-                      ) : (
-                        <p className="mt-3 text-[11px] font-medium uppercase tracking-wide text-black/30 dark:text-white/30">Locked</p>
-                      )}
-                    </motion.article>
-                  );
-                })}
-              </div>
+      {prestigeLevel > 0 || prestigeEligible ? (
+        <div className="mb-4 rounded-[24px] border border-[#0f5132]/25 bg-[#f7faf5] p-5 dark:border-emerald-500/25 dark:bg-[#222832]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Trophy size={16} className="text-[#0f5132] dark:text-emerald-400" />
+              <p className="font-semibold text-black dark:text-white">
+                {prestigeLevel > 0 ? `Prestige ${prestigeLevel}` : "Prestige available"}
+              </p>
             </div>
-          );
-        })}
+            {prestigeLevel > 0 ? (
+              <span className="rounded-full bg-[#0f5132]/10 dark:bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-[#0f5132] dark:text-emerald-400">
+                ×{multiplier} badge points
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-sm text-black/45 dark:text-white/45">
+            {prestigeEligible
+              ? `Collection complete. Reset all badges and re-earn them forever at +25% points per prestige level (next: ×${prestigeMultiplier(prestigeLevel + 1)}), plus the "${prestigeTitle(prestigeLevel + 1)}" profile title. Points and shop items are kept.`
+              : `Re-earn the full collection at ×${multiplier}. Complete all ${TOTAL_BADGE_COUNT} badges to prestige again.`}
+          </p>
+          {prestigeEligible ? (
+            <button
+              type="button"
+              onClick={handlePrestigeClick}
+              disabled={prestigeBusy}
+              className="mt-3 inline-flex h-11 items-center gap-2 rounded-2xl bg-[#15171b] px-5 text-sm font-semibold text-white transition hover:bg-black active:scale-95 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+            >
+              <Trophy size={15} />
+              {prestigeBusy ? "Prestiging…" : confirmPrestige ? "Tap again to confirm reset" : `Prestige to level ${prestigeLevel + 1}`}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => goTo(activeIndex - 1, -1)}
+          aria-label="Previous reward tier"
+          title="Previous tier"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-sm transition hover:bg-black/5 active:scale-95 dark:border-white/10 dark:bg-[#222832] dark:text-white/80 dark:hover:bg-white/10"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <div className="flex flex-1 gap-2 overflow-x-auto py-1" role="tablist" aria-label="Reward tiers">
+          {tierStats.map((group, index) => {
+            const selected = index === activeIndex;
+            return (
+              <button
+                key={group.tier}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => goTo(index, index > activeIndex ? 1 : -1)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition active:scale-95 ${
+                  selected
+                    ? "bg-[#15171b] text-white shadow-md dark:bg-emerald-600"
+                    : "bg-black/5 text-black/60 hover:bg-black/10 dark:bg-white/10 dark:text-white/60 dark:hover:bg-white/15"
+                }`}
+              >
+                {group.label}
+                <span className={selected ? "text-white/70 dark:text-white/80" : "text-black/40 dark:text-white/40"}>
+                  {group.unlockedCount}/{group.badges.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => goTo(activeIndex + 1, 1)}
+          aria-label="Next reward tier"
+          title="Next tier"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white text-black/70 shadow-sm transition hover:bg-black/5 active:scale-95 dark:border-white/10 dark:bg-[#222832] dark:text-white/80 dark:hover:bg-white/10"
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={active.tier}
+          initial={{ opacity: 0, x: 48 * slideDir }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -48 * slideDir }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+        >
+          <div className="mb-3 mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className={`text-lg font-semibold ${active.complete ? "text-[#0f5132] dark:text-emerald-400" : "text-black dark:text-white"}`}>
+                {active.label} <span className="text-sm font-medium text-black/40 dark:text-white/40">• {active.blurb}</span>
+              </h3>
+              <p className="text-xs text-black/45 dark:text-white/45">
+                {active.unlockedCount} of {active.badges.length} unlocked
+              </p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${active.complete ? "bg-[#0f5132] text-white dark:bg-emerald-600" : "bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60"}`}>
+              {active.complete ? "Complete" : "In progress"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {active.badges.map((badge) => {
+              const earned = earnedByCode.get(badge.code);
+              return (
+                <motion.article
+                  key={badge.code}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: active.badges.indexOf(badge) * 0.03 }}
+                  className={`relative rounded-[24px] p-5 border transition ${
+                    earned
+                      ? "bg-[#f7faf5] border-[#0f5132]/40 dark:bg-[#222832] dark:border-emerald-500/40"
+                      : "bg-white border-black/5 dark:bg-[#181d24] dark:border-white/10 opacity-75"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                      earned
+                        ? "bg-[#0f5132] text-white dark:bg-emerald-600"
+                        : "bg-black/5 text-black/40 dark:bg-white/10 dark:text-white/40"
+                    }`}>
+                      {earned ? <Award size={18} /> : <Lock size={16} />}
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                      earned
+                        ? "bg-[#0f5132]/10 text-[#0f5132] dark:bg-emerald-500/20 dark:text-emerald-400"
+                        : "bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/50"
+                    }`}>
+                      +{badge.points} pts
+                    </span>
+                  </div>
+                  <h4 className="mt-3 text-sm font-semibold text-black dark:text-white">{badge.label}</h4>
+                  <p className="mt-1 text-xs leading-5 text-black/50 dark:text-white/55">{badge.description}</p>
+                  {earned ? (
+                    <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#0f5132]/10 dark:bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-[#0f5132] dark:text-emerald-400">
+                      <Sparkles size={11} /> Unlocked
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-[11px] font-medium uppercase tracking-wide text-black/30 dark:text-white/30">Locked</p>
+                  )}
+                </motion.article>
+              );
+            })}
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </motion.section>
   );
 }
@@ -1196,6 +1317,18 @@ export default function App() {
   const isThemeUnlocked = (profile?.redemptions ?? []).some((redemption) => redemption.itemId === "custom_theme");
   const theme = usePremiumTheme({ unlocked: isThemeUnlocked });
 
+  async function handlePrestige() {
+    if (!activeUserId) return;
+    await prestigeUser(activeUserId);
+    setRefreshKey((key) => key + 1);
+  }
+
+  async function handleEquipTitle(title) {
+    if (!activeUserId) return;
+    await equipTitle(activeUserId, title);
+    setRefreshKey((key) => key + 1);
+  }
+
   async function handleRedeem(item) {
     if (!activeUserId) return;
     await redeemItem(activeUserId, item.id);
@@ -1239,8 +1372,11 @@ export default function App() {
       <EditProfileModal
         isOpen={showEditProfile}
         user={currentUser}
+        titles={profile?.titles ?? []}
+        equippedTitle={profile?.equippedTitle ?? null}
         onClose={() => setShowEditProfile(false)}
         onSave={handleUpdateProfile}
+        onEquipTitle={handleEquipTitle}
       />
 
       <div className="grid min-h-[calc(100vh-0.5rem)] grid-cols-[64px_minmax(0,1fr)] gap-2 p-1.5 sm:min-h-[calc(100vh-2rem)] sm:grid-cols-[78px_minmax(0,1fr)] sm:gap-4 sm:p-2">
@@ -1525,7 +1661,7 @@ export default function App() {
                       <ForecastPanel forecast={dashboard?.forecast ?? []} />
                     </div>
                     <div className="lg:col-span-6">
-                      <RewardsPanel badges={badges} rewardPoints={rewardPoints} goals={goals} />
+                      <RewardsPanel badges={badges} rewardPoints={rewardPoints} goals={goals} prestigeLevel={profile?.prestigeLevel ?? 0} onPrestige={handlePrestige} />
                     </div>
                   </div>
                 </div>
@@ -1638,7 +1774,7 @@ export default function App() {
               )}
 
               {activeSection === "rewards" && (
-                <RewardsPanel badges={badges} rewardPoints={rewardPoints} goals={goals} />
+                <RewardsPanel badges={badges} rewardPoints={rewardPoints} goals={goals} prestigeLevel={profile?.prestigeLevel ?? 0} onPrestige={handlePrestige} />
               )}
 
               {activeSection === "shop" && (

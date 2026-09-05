@@ -234,6 +234,21 @@ export async function setStreakProtection(userId, { streakFreezes, streakFrozenD
   return sanitizeUser(user);
 }
 
+export async function equipTitle(userId, title) {
+  const state = await loadState();
+  const user = state.users[userId];
+  if (!user) {
+    throw new Error("User not found.");
+  }
+  const earned = user.titles ?? [];
+  if (title !== null && title !== "" && !earned.includes(title)) {
+    throw new Error("Title not earned yet.");
+  }
+  user.equippedTitle = title || null;
+  await saveState(state);
+  return sanitizeUser(user);
+}
+
 export async function redeemItem(userId, item, premiumUntil) {
   const state = await loadState();
   const user = state.users[userId];

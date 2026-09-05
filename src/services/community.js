@@ -130,7 +130,10 @@ export function buildCommunityProfile(state, viewerId, profileId) {
       picture: user.picture ?? null,
       rewardPoints: user.rewardPoints ?? 0,
       weeklyEmissionTargetKg: user.weeklyEmissionTargetKg ?? 85,
-      createdAt: user.createdAt ?? null
+      createdAt: user.createdAt ?? null,
+      prestigeLevel: user.prestigeLevel ?? 0,
+      titles: user.titles ?? [],
+      equippedTitle: user.equippedTitle ?? null
     },
     isSelf,
     isFriends,

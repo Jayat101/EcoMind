@@ -9,6 +9,7 @@ import {
   appendEntries,
   claimChallengeReward,
   deleteEntry,
+  equipTitle,
   getEntries,
   getUser,
   loginGoogleUser,
@@ -37,13 +38,18 @@ import {
   deleteTrackedTrip
 } from "./lib/store.js";
 import {
+  applyBadgeEarnings,
   buildForecast,
   buildGoals,
   buildRecommendations,
   buildTrend,
   calculateEntryFromPayload,
   calculateStats,
-  evaluateBadges
+  canPrestige,
+  evaluateBadges,
+  prestigeMultiplier,
+  prestigeTitle,
+  TOTAL_BADGE_COUNT
 } from "./lib/engine.js";
 import { computePremiumUntil, findShopItem, getShopCatalog } from "../../src/services/shop.js";
 import { buildFriends, buildLeaderboard, buildMonthlyChallenge, buildCommunityProfile } from "../../src/services/community.js";
@@ -307,17 +313,20 @@ app.post("/api/carbon/log", async (req, res, next) => {
       profile
     );
 
+    const earnings = applyBadgeEarnings(profile, newlyEarned);
     const nextProfile = {
       ...profile,
-      badges: [...(profile.badges ?? []), ...newlyEarned],
-      rewardPoints: (profile.rewardPoints ?? 0) + newlyEarned.reduce((sum, badge) => sum + badge.points, 0)
+      badges: earnings.badges,
+      rewardPoints: earnings.rewardPoints,
+      allBadgesBonusAwarded: earnings.allBadgesBonusAwarded
     };
 
     await replaceUser(userId, nextProfile);
 
     res.status(201).json({
       entry,
-      earnedBadges: newlyEarned,
+      earnedBadges: earnings.creditedBadges,
+      completionBonus: earnings.completionBonus,
       rewardPoints: nextProfile.rewardPoints
     });
   } catch (error) {
@@ -534,10 +543,12 @@ app.post("/api/import/activities", async (req, res, next) => {
       profile
     );
 
+    const earnings = applyBadgeEarnings(profile, newlyEarned);
     const nextProfile = {
       ...profile,
-      badges: [...(profile.badges ?? []), ...newlyEarned],
-      rewardPoints: (profile.rewardPoints ?? 0) + newlyEarned.reduce((sum, badge) => sum + badge.points, 0)
+      badges: earnings.badges,
+      rewardPoints: earnings.rewardPoints,
+      allBadgesBonusAwarded: earnings.allBadgesBonusAwarded
     };
     await replaceUser(userId, nextProfile);
 
@@ -549,7 +560,8 @@ app.post("/api/import/activities", async (req, res, next) => {
     res.status(201).json({
       imported: entries.length,
       totalEmissionsKg: importedKg,
-      earnedBadges: newlyEarned,
+      earnedBadges: earnings.creditedBadges,
+      completionBonus: earnings.completionBonus,
       rewardPoints: nextProfile.rewardPoints,
       dashboard
     });
@@ -625,16 +637,19 @@ app.post("/api/carbon/tracked", async (req, res, next) => {
       profile
     );
 
+    const earnings = applyBadgeEarnings(profile, newlyEarned);
     const nextProfile = {
       ...profile,
-      badges: [...(profile.badges ?? []), ...newlyEarned],
-      rewardPoints: (profile.rewardPoints ?? 0) + newlyEarned.reduce((sum, badge) => sum + badge.points, 0)
+      badges: earnings.badges,
+      rewardPoints: earnings.rewardPoints,
+      allBadgesBonusAwarded: earnings.allBadgesBonusAwarded
     };
     await replaceUser(userId, nextProfile);
 
     res.status(201).json({
       entry,
-      earnedBadges: newlyEarned,
+      earnedBadges: earnings.creditedBadges,
+      completionBonus: earnings.completionBonus,
       rewardPoints: nextProfile.rewardPoints,
       dashboard: await buildDashboard(userId)
     });
@@ -730,6 +745,60 @@ app.post("/api/shop/redeem", async (req, res, next) => {
     const { user, redemption } = await redeemItem(userId, item, premiumUntil);
 
     res.status(201).json({ redemption, user });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// --- Prestige: reset a completed badge collection for a permanent point multiplier ---
+app.post("/api/prestige/:userId", async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+    let profile = null;
+    try {
+      profile = await ensureUser(userId);
+    } catch (error) {
+      return res.status(404).json({ message: "User not found. Please sign up or log in first." });
+    }
+    if (!canPrestige(profile)) {
+      return res.status(400).json({
+        message: `Unlock all ${TOTAL_BADGE_COUNT} badges before prestiging (${(profile.badges ?? []).length}/${TOTAL_BADGE_COUNT}).`
+      });
+    }
+    const prestigeLevel = (profile.prestigeLevel ?? 0) + 1;
+    const title = prestigeTitle(prestigeLevel);
+    const earnedTitles = profile.titles ?? [];
+    const nextProfile = {
+      ...profile,
+      badges: [],
+      prestigeLevel,
+      allBadgesBonusAwarded: false,
+      titles: earnedTitles.includes(title) ? earnedTitles : [...earnedTitles, title],
+      equippedTitle: title
+    };
+    await replaceUser(userId, nextProfile);
+    res.json({
+      prestigeLevel,
+      multiplier: prestigeMultiplier(prestigeLevel),
+      title,
+      badges: [],
+      rewardPoints: nextProfile.rewardPoints ?? 0,
+      dashboard: await buildDashboard(userId)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- Titles: equip an earned prestige title on the profile ---
+app.post("/api/profile/title", async (req, res, next) => {
+  try {
+    const { userId, title } = req.body ?? {};
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required." });
+    }
+    const user = await equipTitle(userId, title ?? null);
+    res.json({ user });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

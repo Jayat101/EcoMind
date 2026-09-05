@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Crown,
   Flame,
   Loader2,
   MapPin,
@@ -196,6 +197,12 @@ export default function ProfileDrawer({ viewerId, profileId, initialRow, onClose
                 <h3 className="truncate text-base font-semibold text-black dark:text-white">
                   {initialRow?.name ?? profile?.user?.name}
                 </h3>
+                {profile?.user?.equippedTitle ? (
+                  <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                    <Crown size={11} />
+                    {profile.user.equippedTitle}
+                  </p>
+                ) : null}
                 <p className="flex items-center gap-1 text-xs text-black/45 dark:text-white/45">
                   <MapPin size={10} />
                   {initialRow?.city ?? profile?.user?.city ?? "New Delhi"}

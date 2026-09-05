@@ -1,15 +1,18 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, Loader2, MapPin, User, X } from "lucide-react";
+import { Camera, Check, Crown, Loader2, MapPin, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { INDIAN_CITIES } from "../constants/cities.js";
 
-export default function EditProfileModal({ isOpen, user, onClose, onSave }) {
+export default function EditProfileModal({ isOpen, user, titles = [], equippedTitle = null, onClose, onSave, onEquipTitle }) {
   const [name, setName] = useState(user?.name ?? "");
   const [city, setCity] = useState(user?.city ?? "New Delhi");
   const [picture, setPicture] = useState(user?.picture ?? "");
   const [pictureFailed, setPictureFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [equipped, setEquipped] = useState(equippedTitle);
+  const [titleBusy, setTitleBusy] = useState(false);
+  const [titleError, setTitleError] = useState("");
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -19,10 +22,30 @@ export default function EditProfileModal({ isOpen, user, onClose, onSave }) {
       setPicture(user?.picture ?? "");
       setPictureFailed(false);
       setError("");
+      setEquipped(equippedTitle ?? null);
+      setTitleError("");
     }
   }, [isOpen, user]);
 
+  useEffect(() => {
+    if (isOpen) setEquipped(equippedTitle ?? null);
+  }, [isOpen, equippedTitle]);
+
   if (!isOpen) return null;
+
+  async function handleEquip(title) {
+    setTitleError("");
+    if (titleBusy) return;
+    setTitleBusy(true);
+    try {
+      await onEquipTitle?.(title);
+      setEquipped(title ?? null);
+    } catch (err) {
+      setTitleError(err?.message ?? "Could not equip title.");
+    } finally {
+      setTitleBusy(false);
+    }
+  }
 
   function handleFileChange(event) {
     const file = event.target.files?.[0];
@@ -176,6 +199,38 @@ export default function EditProfileModal({ isOpen, user, onClose, onSave }) {
             >
               {saving ? <Loader2 size={18} className="animate-spin" /> : "Save Changes"}
             </button>
+
+            {titles?.length > 0 ? (
+              <div>
+                <p className="block text-xs font-semibold text-black/70 mb-1 dark:text-white/70">Profile Title</p>
+                <div className="flex flex-wrap gap-2">
+                  {titles.map((title) => {
+                    const isEquipped = equipped === title;
+                    return (
+                      <button
+                        key={title}
+                        type="button"
+                        disabled={titleBusy}
+                        onClick={() => handleEquip(isEquipped ? null : title)}
+                        title={isEquipped ? "Unequip title" : `Equip ${title}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition active:scale-95 disabled:opacity-60 ${
+                          isEquipped
+                            ? "bg-amber-400 text-[#3a2500] shadow-md dark:bg-amber-400"
+                            : "bg-black/5 text-black/60 hover:bg-black/10 dark:bg-white/10 dark:text-white/60 dark:hover:bg-white/15"
+                        }`}
+                      >
+                        {isEquipped ? <Check size={13} /> : <Crown size={13} />}
+                        {title}
+                      </button>
+                    );
+                  })}
+                </div>
+                {titleError ? <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">{titleError}</p> : null}
+                <p className="mt-1.5 text-[11px] text-black/45 dark:text-white/45">
+                  Earned by prestiging. Tap to show it on your profile.
+                </p>
+              </div>
+            ) : null}
           </form>
         </motion.div>
       </motion.div>

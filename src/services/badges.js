@@ -53,49 +53,69 @@ function buildContext(localEntries, stats, profile) {
   let cumulativeKg = 0;
   let anyLowImpactDay = false;
 
+  // Group entries by calendar day so "day" counters reflect real days and
+  // can't be farmed with multiple same-day logs. Entries without a date
+  // each form their own group. Presence behaviors (walked, recycled…)
+  // count a day when ANY entry shows them; absence behaviors (no takeout,
+  // no goods, car-free) count only when EVERY entry that day shows them.
+  // Cumulative sums (km, kg) still add up per entry.
+  const byDay = new Map();
   entries.forEach((entry) => {
-    const t = entry.transportation ?? {};
-    const en = entry.energy ?? {};
-    const l = entry.lifestyle ?? {};
-    const type = t.vehicleType;
-    const distance = Number(t.distanceKm ?? 0);
     const dateStr = entry.date ? String(entry.date).slice(0, 10) : null;
-
+    const key = dateStr ?? `undated_${byDay.size}`;
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push(entry);
     if (dateStr) uniqueDays.add(dateStr);
 
-    if (LOW_CARBON_VEHICLES.has(type)) lowCarbonDays += 1;
-    if (type === "walk" || type === "bicycle") {
-      walkBikeDays += 1;
-      lowCarbonKm += distance;
-    } else if (type === "bus" || type === "ev") {
-      transitDays += 1;
-      lowCarbonKm += distance;
+    const t = entry.transportation ?? {};
+    if (t.vehicleType === "walk" || t.vehicleType === "bicycle") {
+      lowCarbonKm += Number(t.distanceKm ?? 0);
+    } else if (t.vehicleType === "bus" || t.vehicleType === "ev") {
+      lowCarbonKm += Number(t.distanceKm ?? 0);
     }
-
-    if (CAR_VEHICLES.has(type)) {
-      carDays += 1;
-      if (distance > 0 && distance <= 5) shortCarDays += 1;
-    } else {
-      carFreeDays += 1;
-    }
-
-    if (l.recycledOrComposted) recycleDays += 1;
-    if (l.dietType === "vegan" || l.dietType === "vegetarian") plantDays += 1;
-    if (Number(l.takeoutMeals ?? 0) === 0) noTakeoutDays += 1;
-    if (l.newGoodsPurchased === "none" || Number(l.shoppingItems ?? 0) === 0) noGoodsDays += 1;
-
-    const ac = Number(en.acHours ?? 0);
-    if (ac < 4) lowAcDays += 1;
-    if (ac < 3) veryLowAcDays += 1;
 
     const total = Number(entry.totalEmissionsKg ?? 0);
     cumulativeKg += total;
     if (total > 0 && total <= 10) anyLowImpactDay = true;
 
     if (dateStr) {
-      const key = isoWeekKey(dateStr);
-      if (key) weekTotals.set(key, (weekTotals.get(key) ?? 0) + total);
+      const key2 = isoWeekKey(dateStr);
+      if (key2) weekTotals.set(key2, (weekTotals.get(key2) ?? 0) + total);
     }
+  });
+
+  byDay.forEach((dayEntries) => {
+    const vehicleOf = (entry) => (entry.transportation ?? {}).vehicleType;
+    const lifestyleOf = (entry) => (entry.lifestyle ?? {});
+    const acOf = (entry) => Number((entry.energy ?? {}).acHours ?? 0);
+    const has = (fn) => dayEntries.some(fn);
+    const all = (fn) => dayEntries.every(fn);
+
+    if (has((e) => vehicleOf(e) === "walk" || vehicleOf(e) === "bicycle")) walkBikeDays += 1;
+    if (has((e) => vehicleOf(e) === "bus" || vehicleOf(e) === "ev")) transitDays += 1;
+    if (has((e) => LOW_CARBON_VEHICLES.has(vehicleOf(e)))) lowCarbonDays += 1;
+    if (has((e) => CAR_VEHICLES.has(vehicleOf(e)))) carDays += 1;
+    if (
+      has(
+        (e) =>
+          CAR_VEHICLES.has(vehicleOf(e)) &&
+          Number((e.transportation ?? {}).distanceKm ?? 0) > 0 &&
+          Number((e.transportation ?? {}).distanceKm ?? 0) <= 5
+      )
+    ) {
+      shortCarDays += 1;
+    }
+    if (all((e) => !CAR_VEHICLES.has(vehicleOf(e)))) carFreeDays += 1;
+
+    if (has((e) => lifestyleOf(e).recycledOrComposted)) recycleDays += 1;
+    if (has((e) => lifestyleOf(e).dietType === "vegan" || lifestyleOf(e).dietType === "vegetarian")) plantDays += 1;
+    if (all((e) => Number(lifestyleOf(e).takeoutMeals ?? 0) === 0)) noTakeoutDays += 1;
+    if (all((e) => lifestyleOf(e).newGoodsPurchased === "none" || Number(lifestyleOf(e).shoppingItems ?? 0) === 0)) {
+      noGoodsDays += 1;
+    }
+
+    if (has((e) => acOf(e) < 4)) lowAcDays += 1;
+    if (has((e) => acOf(e) < 3)) veryLowAcDays += 1;
   });
 
   const target = Number(profile?.weeklyEmissionTargetKg ?? 0);
@@ -269,4 +289,47 @@ export function getBadgeCatalog() {
     tier,
     badges: BADGE_RULES.filter((rule) => rule.tier === tier)
   }));
+}
+
+// ---- Endgame: completion bonus + prestige loop ----
+export const TOTAL_BADGE_COUNT = BADGE_RULES.length;
+export const COMPLETION_BONUS_POINTS = 1000;
+export const COMPLETION_TITLE = "EcoMaster";
+export const PRESTIGE_POINT_STEP = 0.25;
+
+export function prestigeMultiplier(level) {
+  return 1 + PRESTIGE_POINT_STEP * Math.max(0, Number(level ?? 0));
+}
+
+export function prestigeTitle(level) {
+  return `EcoMaster ${Math.max(1, Number(level ?? 1))}`;
+}
+
+export function canPrestige(profile) {
+  return (profile?.badges ?? []).length >= TOTAL_BADGE_COUNT;
+}
+
+// Credits newly earned badge points (scaled by the profile's prestige
+// multiplier) and awards the one-time completion bonus when the collection
+// hits TOTAL_BADGE_COUNT. Returns everything the server needs to persist.
+export function applyBadgeEarnings(profile, newlyEarned) {
+  const multiplier = prestigeMultiplier(profile?.prestigeLevel);
+  const creditedBadges = (newlyEarned ?? []).map((badge) => ({
+    ...badge,
+    points: Math.round(badge.points * multiplier)
+  }));
+  const total = (profile?.badges ?? []).length + creditedBadges.length;
+  const completionBonus =
+    !profile?.allBadgesBonusAwarded && total >= TOTAL_BADGE_COUNT ? COMPLETION_BONUS_POINTS : 0;
+  return {
+    badges: [...(profile?.badges ?? []), ...creditedBadges],
+    rewardPoints:
+      (profile?.rewardPoints ?? 0) +
+      creditedBadges.reduce((sum, badge) => sum + badge.points, 0) +
+      completionBonus,
+    allBadgesBonusAwarded: Boolean(profile?.allBadgesBonusAwarded) || completionBonus > 0,
+    completionBonus,
+    creditedBadges,
+    multiplier
+  };
 }

@@ -1,5 +1,16 @@
 import { demoDashboard } from "../../../src/services/demoData.js";
-import { buildGoals, evaluateBadges } from "../../../src/services/badges.js";
+import {
+  applyBadgeEarnings,
+  buildGoals,
+  canPrestige,
+  COMPLETION_BONUS_POINTS,
+  COMPLETION_TITLE,
+  evaluateBadges,
+  PRESTIGE_POINT_STEP,
+  prestigeMultiplier,
+  prestigeTitle,
+  TOTAL_BADGE_COUNT
+} from "../../../src/services/badges.js";
 import { fetchClimatiqTransportEmissions } from "./climatiq.js";
 
 const EMISSION_FACTORS = {
@@ -54,6 +65,10 @@ export function createDefaultUser(overrides = {}) {
     badges: [],
     streakFreezes: 0,
     streakFrozenDays: [],
+    prestigeLevel: 0,
+    titles: [],
+    equippedTitle: null,
+    allBadgesBonusAwarded: false,
     ...overrides
   };
 }
@@ -213,4 +228,15 @@ export function buildTrend(entries) {
   }));
 }
 
-export { buildGoals, evaluateBadges };
+export {
+  applyBadgeEarnings,
+  buildGoals,
+  canPrestige,
+  COMPLETION_BONUS_POINTS,
+  COMPLETION_TITLE,
+  evaluateBadges,
+  PRESTIGE_POINT_STEP,
+  prestigeMultiplier,
+  prestigeTitle,
+  TOTAL_BADGE_COUNT
+};

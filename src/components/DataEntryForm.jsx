@@ -275,7 +275,11 @@ export default function DataEntryForm({ userId, onLogged, onSubmitted, onCancelE
         const badgeCopy = result.earnedBadges?.length
           ? ` Unlocked: ${result.earnedBadges.map((badge) => badge.label).join(", ")}!`
           : "";
-        setMessage(`Logged ${result.entry.totalEmissionsKg} kg CO2e.${badgeCopy}`);
+        const masterCopy =
+          result.completionBonus > 0
+            ? ` EcoMaster complete! Full badge collection — +${result.completionBonus} bonus points!`
+            : "";
+        setMessage(`Logged ${result.entry.totalEmissionsKg} kg CO2e.${badgeCopy}${masterCopy}`);
       }
       setForm(initialForm);
       (onSubmitted ?? onLogged)?.();

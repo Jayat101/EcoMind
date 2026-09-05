@@ -129,6 +129,30 @@ export async function redeemItem(userId, itemId) {
   }
 }
 
+export async function prestigeUser(userId) {
+  try {
+    const { data } = await api.post(`/prestige/${encodeURIComponent(userId)}`);
+    return data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw error;
+  }
+}
+
+export async function equipTitle(userId, title) {
+  try {
+    const { data } = await api.post("/profile/title", { userId, title });
+    return data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw error;
+  }
+}
+
 export async function sendVerificationCode(email) {
   const { data } = await api.post("/auth/send-verification", { email }, { timeout: 20000 });
   return data;
