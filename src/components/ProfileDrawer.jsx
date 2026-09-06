@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import {
   Award,
+  CalendarDays,
   Car,
   Check,
   CheckCircle2,
@@ -17,7 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchCommunityProfile, removeFriend, respondFriendRequest, sendFriendRequest, toggleGoingOut } from "../services/api.js";
-import MonthCalendar from "./MonthCalendar.jsx";
+import MonthHeatmap from "./MonthHeatmap.jsx";
 
 const TIER_STYLES = {
   sprout: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25",
@@ -33,19 +34,6 @@ function formatDay(day) {
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-function monthLabel(year, month) {
-  return new Date(year, month, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
-}
-
-function monthsFrom(currentIndex, count) {
-  const months = [];
-  for (let offset = -2; offset <= count; offset += 1) {
-    const idx = currentIndex + offset;
-    months.push({ year: Math.floor(idx / 12), month: idx % 12 });
-  }
-  return months;
-}
-
 function Stat({ icon: Icon, label, value }) {
   return (
     <div className="rounded-2xl bg-[#f7faf5] dark:bg-[#222832] p-4 border border-black/5 dark:border-white/10">
@@ -59,6 +47,14 @@ function Stat({ icon: Icon, label, value }) {
 }
 
 function FriendActions({ status, busy, onSend, onAccept, onDecline, onRemove, onClose }) {
+  if (status === "self") {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-2xl bg-[#0f5132]/10 px-4 py-2.5 text-sm font-semibold text-[#0f5132] dark:bg-emerald-500/20 dark:text-emerald-400">
+        <UserCheck size={15} />
+        This is you
+      </div>
+    );
+  }
   if (status === "pending") {
     return (
       <div className="inline-flex items-center gap-2 rounded-2xl bg-amber-100 px-4 py-2.5 text-sm font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
@@ -160,7 +156,6 @@ export default function ProfileDrawer({ viewerId, profileId, initialRow, onClose
   }
 
   const now = new Date();
-  const currentIndex = now.getFullYear() * 12 + now.getMonth();
 
   const fullAccess = profile?.isSelf || profile?.isFriends;
 
@@ -270,16 +265,13 @@ export default function ProfileDrawer({ viewerId, profileId, initialRow, onClose
                     <section>
                       <p className="field-label">Logged days</p>
                       <p className="mb-3 mt-1 text-xs text-black/45 dark:text-white/45">
-                        Amber dots mark days {profile.isSelf ? "you" : profile.user.name} logged a check-in.
+                        Green squares mark days {profile.isSelf ? "you" : profile.user.name} logged a check-in.
                       </p>
-                      <div className="grid grid-cols-2 gap-4">
-                        {monthsFrom(currentIndex, 1).map(({ year, month }) => (
-                          <div key={`${year}-${month}`}>
-                            <p className="mb-2 text-xs font-semibold text-black/60 dark:text-white/60">{monthLabel(year, month)}</p>
-                            <MonthCalendar year={year} month={month} marked={profile.loggedDays} />
-                          </div>
-                        ))}
-                      </div>
+                      <MonthHeatmap
+                        year={now.getFullYear()}
+                        month={now.getMonth()}
+                        marked={profile.loggedDays}
+                      />
                     </section>
 
                     <section>
@@ -291,24 +283,17 @@ export default function ProfileDrawer({ viewerId, profileId, initialRow, onClose
                           <>Days {profile.user.name} is planning to go out.</>
                         )}
                       </p>
-                      <div className="grid grid-cols-2 gap-4">
-                        {monthsFrom(currentIndex, 1).map(({ year, month }) => (
-                          <div key={`${year}-${month}`}>
-                            <p className="mb-2 text-xs font-semibold text-black/60 dark:text-white/60">{monthLabel(year, month)}</p>
-                            <MonthCalendar
-                              year={year}
-                              month={month}
-                              selected={profile.goingOutDays}
-                              selectable={profile.isSelf}
-                              onToggle={async (date) => {
-                                const result = await toggleGoingOut(viewerId, date);
-                                setProfile({ ...profile, goingOutDays: result.goingOutDays });
-                                onChanged?.();
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
+                      <MonthHeatmap
+                        year={now.getFullYear()}
+                        month={now.getMonth()}
+                        selected={profile.goingOutDays}
+                        selectable={profile.isSelf}
+                        onToggle={async (date) => {
+                          const result = await toggleGoingOut(viewerId, date);
+                          setProfile({ ...profile, goingOutDays: result.goingOutDays });
+                          onChanged?.();
+                        }}
+                      />
                     </section>
 
                     {profile.isFriends ? (
