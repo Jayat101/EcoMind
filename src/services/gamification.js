@@ -1,5 +1,6 @@
 import { demoDashboard } from "./demoData.js";
 import { buildGoals, evaluateBadges } from "./badges.js";
+import { buildPersonalRecommendations } from "./recommendations.js";
 import { buildMonthlyChallenge } from "./community.js";
 import { autoFreezeStreak, getStreak } from "./streak.js";
 
@@ -196,30 +197,8 @@ function calculateStats(entries, weeklyTargetKg) {
   };
 }
 
-function buildRecommendations(categoryTotals) {
-  const ranked = Object.entries(categoryTotals).sort(([, a], [, b]) => b - a);
-  const top = ranked[0]?.[0] ?? "transportation";
-  const next = ranked[1]?.[0] ?? "lifestyle";
-
-  const tips = {
-    transportation: [
-      "Replace one short car trip with walking, cycling, or transit this week.",
-      "Combine errands into one route to cut extra kilometers."
-    ],
-    lifestyle: [
-      "Choose one more plant-forward meal this week.",
-      "Delay impulse shopping by a day and batch essentials."
-    ],
-    energy: [
-      "Shift a high-energy task out of peak evening hours.",
-      "Turn off standby-heavy devices before bed."
-    ]
-  };
-
-  return [
-    { category: top, priority: "High", tips: tips[top] ?? tips.transportation },
-    { category: next, priority: "Next", tips: [tips[next]?.[0] ?? tips.lifestyle[0]] }
-  ];
+function buildRecommendations(entries, stats, profile) {
+  return buildPersonalRecommendations(entries, stats, profile);
 }
 
 function buildForecast(entries) {
@@ -268,7 +247,7 @@ export function getLocalDashboard() {
 
   const allEntries = [...baseEntries, ...state.localEntries];
   const stats = calculateStats(allEntries, profile.weeklyEmissionTargetKg);
-  const recommendations = buildRecommendations(stats.categoryTotals);
+  const recommendations = buildRecommendations(allEntries, stats, profile);
   const trend = buildTrend(allEntries);
   const forecast = buildForecast(allEntries);
   const goals = buildGoals(state.localEntries, state.earnedBadges, stats, profile.weeklyEmissionTargetKg, state.streakFrozenDays ?? []);

@@ -11,6 +11,7 @@ import {
   prestigeTitle,
   TOTAL_BADGE_COUNT
 } from "../../../src/services/badges.js";
+import { buildPersonalRecommendations } from "../../../src/services/recommendations.js";
 import { fetchClimatiqTransportEmissions } from "./climatiq.js";
 
 const EMISSION_FACTORS = {
@@ -179,30 +180,8 @@ export function calculateStats(entries, weeklyTargetKg) {
   };
 }
 
-export function buildRecommendations(categoryTotals) {
-  const ranked = Object.entries(categoryTotals).sort(([, a], [, b]) => b - a);
-  const top = ranked[0]?.[0] ?? "transportation";
-  const next = ranked[1]?.[0] ?? "lifestyle";
-
-  const tips = {
-    transportation: [
-      "Replace one short car trip with walking, cycling, or transit this week.",
-      "Combine errands into one route to cut extra kilometers."
-    ],
-    lifestyle: [
-      "Choose one more plant-forward meal this week.",
-      "Delay impulse shopping by a day and batch essentials."
-    ],
-    energy: [
-      "Shift a high-energy task out of peak evening hours.",
-      "Turn off standby-heavy devices before bed."
-    ]
-  };
-
-  return [
-    { category: top, priority: "High", tips: tips[top] ?? tips.transportation },
-    { category: next, priority: "Next", tips: [tips[next]?.[0] ?? tips.lifestyle[0]] }
-  ];
+export function buildRecommendations(entries, stats, profile) {
+  return buildPersonalRecommendations(entries, stats, profile);
 }
 
 export function buildForecast(entries) {

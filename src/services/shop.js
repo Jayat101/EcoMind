@@ -3,7 +3,7 @@ export const SHOP_ITEMS = [
     id: "premium_week",
     name: "Premium Insights – 7 Days",
     description: "Unlock the extended 14-day forecast and category deep dive for one week.",
-    points: 500,
+    points: 1500,
     type: "premium",
     durationDays: 7,
     icon: "sparkles"
@@ -12,7 +12,7 @@ export const SHOP_ITEMS = [
     id: "eco_ebook",
     name: "Eco Tips E-Book",
     description: "A practical 60-page guide to cutting your daily footprint.",
-    points: 200,
+    points: 500,
     type: "item",
     icon: "book",
     content: {
@@ -139,7 +139,7 @@ export const SHOP_ITEMS = [
     id: "custom_theme",
     name: "Eco Theme Pack",
     description: "Unlock the premium Sienna earth theme — warm clay, copper and stone surfaces across EcoMind.",
-    points: 300,
+    points: 800,
     type: "item",
     icon: "palette",
     theme: {
@@ -152,7 +152,7 @@ export const SHOP_ITEMS = [
     id: "streak_freeze",
     name: "Streak Freeze",
     description: "Protect your logging streak for one day. If you miss a check-in, your streak is preserved automatically.",
-    points: 500,
+    points: 750,
     type: "item",
     icon: "snowflake"
   },
@@ -160,7 +160,7 @@ export const SHOP_ITEMS = [
     id: "premium_month",
     name: "Premium Insights – 30 Days",
     description: "A month of extended forecast, deep-dive analytics, and priority tips.",
-    points: 1600,
+    points: 3500,
     type: "premium",
     durationDays: 30,
     icon: "star"
@@ -169,7 +169,7 @@ export const SHOP_ITEMS = [
     id: "offset_certificate",
     name: "Carbon Offset Certificate",
     description: "A printable certificate for 100 kg CO2e offset on your behalf.",
-    points: 1500,
+    points: 2500,
     type: "item",
     icon: "certificate",
     content: {

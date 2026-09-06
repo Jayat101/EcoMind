@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Award, BarChart3, BookOpen, Bot, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock, Download, DownloadCloud, HelpCircle, Leaf, Loader2, Lock, LogIn, LogOut, Map as MapIcon, Palette, Plus, RotateCcw, ShoppingBag, Snowflake, Sparkles, Star, Trophy, UserCheck, Users } from "lucide-react";
+import { Award, BarChart3, BookOpen, Bot, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock, Download, DownloadCloud, HelpCircle, Leaf, Loader2, Lock, LogIn, LogOut, Map as MapIcon, Palette, Plus, RotateCcw, Send, ShoppingBag, Snowflake, Sparkles, Star, Trophy, UserCheck, Users } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import ActivityHistory from "./components/ActivityHistory.jsx";
@@ -11,7 +11,7 @@ import LandingPage from "./components/LandingPage.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
 import ThemeToggle from "./components/ThemeToggle.jsx";
 import { usePremiumTheme } from "./hooks/usePremiumTheme.js";
-import { fetchDashboard, fetchEntries, resetUser, upsertUser, fetchUser, deleteCarbonEntry, redeemItem, prestigeUser, equipTitle, handleGoogleFitCallback, getTrackedTrips, saveTrackedTrip, deleteTrackedTrip, logTrackedTripToCarbon } from "./services/api.js";
+import { fetchDashboard, fetchEntries, resetUser, upsertUser, fetchUser, deleteCarbonEntry, redeemItem, prestigeUser, equipTitle, sendChatMessage, handleGoogleFitCallback, getTrackedTrips, saveTrackedTrip, deleteTrackedTrip, logTrackedTripToCarbon } from "./services/api.js";
 
 
 const TravelAlternativesPanel = lazy(() => import("./components/TravelAlternativesPanel.jsx"));
@@ -346,7 +346,8 @@ function StatisticsPanel({ trend = [] }) {
   );
 }
 
-function Recommendations({ recommendations = [] }) {
+function Recommendations({ recommendations = [], onAction }) {
+  const hasData = recommendations.length > 0;
   return (
     <motion.section variants={riseIn} className="workspace-card">
       <div className="mb-5 flex items-center justify-between">
@@ -354,26 +355,51 @@ function Recommendations({ recommendations = [] }) {
           <p className="field-label">AI Recommendations</p>
           <h2 className="mt-1 text-2xl font-medium text-black dark:text-white">Priority actions</h2>
         </div>
-        <span className="rounded-full bg-[#0f5132] px-3.5 py-1 text-xs font-semibold text-white shadow-sm dark:bg-emerald-600">Live</span>
+        <span className={`rounded-full px-3.5 py-1 text-xs font-semibold text-white shadow-sm ${hasData ? "bg-[#0f5132] dark:bg-emerald-600" : "bg-black/30 dark:bg-white/20"}`}>
+          {hasData ? "Live" : "Waiting for data"}
+        </span>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {recommendations.map((item) => (
-          <article key={`${item.category}-${item.priority}`} className="rounded-[24px] bg-white p-5 border border-black/5 dark:bg-[#222832] dark:border-white/10">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="capitalize text-black font-semibold dark:text-white">{item.category}</h3>
-              <span className="rounded-full bg-[#15171b] px-3 py-1 text-xs font-semibold text-white dark:bg-emerald-600">{item.priority}</span>
-            </div>
-            <ul className="space-y-2 text-sm text-black/55 dark:text-white/60">
-              {item.tips.map((tip) => (
-                <li key={tip} className="flex gap-2">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#0f5132]" />
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </div>
+      {hasData ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {recommendations.map((item) => (
+            <article key={`${item.category}-${item.priority}-${item.title ?? ""}`} className="rounded-[24px] bg-white p-5 border border-black/5 dark:bg-[#222832] dark:border-white/10">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-black dark:text-white">{item.title ?? item.category}</h3>
+                <span className="shrink-0 rounded-full bg-[#15171b] px-3 py-1 text-xs font-semibold text-white dark:bg-emerald-600">{item.priority}</span>
+              </div>
+              {item.insight ? (
+                <p className="mb-3 text-xs leading-5 text-[#0f5132] dark:text-emerald-400">{item.insight}</p>
+              ) : null}
+              <ul className="space-y-2 text-sm text-black/55 dark:text-white/60">
+                {item.tips.map((tip) => (
+                  <li key={tip} className="flex gap-2">
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#0f5132]" />
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center rounded-[24px] border border-dashed border-black/15 p-6 text-center dark:border-white/15">
+          <Sparkles size={20} className="text-[#0f5132] dark:text-emerald-400" />
+          <p className="mt-2 text-sm font-semibold text-black dark:text-white">Not enough data yet</p>
+          <p className="mt-1 max-w-sm text-xs leading-5 text-black/50 dark:text-white/50">
+            Recommendations are built from your own logs — nothing generic. Log your first days of activity and your personal plan appears here.
+          </p>
+          {onAction ? (
+            <button
+              type="button"
+              onClick={onAction}
+              className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-2xl bg-[#15171b] px-5 text-xs font-semibold text-white transition hover:bg-black active:scale-95 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+            >
+              <Plus size={14} />
+              Log your first entry
+            </button>
+          ) : null}
+        </div>
+      )}
     </motion.section>
   );
 }
@@ -408,6 +434,141 @@ function ForecastPanel({ forecast = [] }) {
           <p className="mt-1 text-xs text-black/45 dark:text-white/45">Forecast models populate as you log daily activities.</p>
         </div>
       )}
+    </motion.section>
+  );
+}
+
+function ChatPanel({ userId, isPremium, dailyLimit }) {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [remaining, setRemaining] = useState(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [messages, busy]);
+
+  const left = remaining ?? dailyLimit;
+
+  async function send(question) {
+    const clean = String(question ?? "").trim().slice(0, 500);
+    if (!clean || busy || !userId) return;
+    setNotice("");
+    const next = [...messages, { role: "user", text: clean }];
+    setMessages(next);
+    setDraft("");
+    setBusy(true);
+    try {
+      const history = next.slice(-7, -1).map((msg) => ({ role: msg.role, text: msg.text }));
+      const res = await sendChatMessage(userId, clean, history);
+      setMessages((current) => [...current, { role: "coach", text: res.reply }]);
+      if (typeof res?.remaining === "number") setRemaining(res.remaining);
+    } catch (err) {
+      if (err?.status === 429) {
+        setNotice(err.message ?? "Daily question limit reached.");
+        if (typeof err?.remaining === "number") setRemaining(err.remaining);
+      } else {
+        setMessages((current) => [
+          ...current,
+          { role: "coach", text: err?.message ?? "The AI coach is unavailable right now.", failed: true }
+        ]);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <motion.section variants={riseIn} className="workspace-card">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#0f5132]/10 text-[#0f5132] dark:bg-emerald-500/20 dark:text-emerald-400">
+            <Bot size={17} />
+          </span>
+          <div>
+            <p className="field-label">AI Coach Chat</p>
+            <h2 className="text-xl font-medium text-black dark:text-white">Ask EcoMind</h2>
+          </div>
+        </div>
+        <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-black/60 dark:bg-white/10 dark:text-white/60">
+          {left} of {dailyLimit} left today
+        </span>
+      </div>
+
+      <div className="max-h-80 space-y-2.5 overflow-y-auto rounded-2xl bg-black/[0.02] p-3 dark:bg-white/[0.03]">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-start gap-2 py-2">
+            <p className="text-xs leading-5 text-black/50 dark:text-white/50">
+              Ask anything about your footprint — answers come from your own logs, not generic tips.
+            </p>
+            <button
+              type="button"
+              onClick={() => send("Why did my footprint change this week?")}
+              className="rounded-full border border-[#0f5132]/30 px-3.5 py-2 text-xs font-semibold text-[#0f5132] transition hover:bg-[#0f5132]/10 active:scale-95 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
+            >
+              Why did my footprint change this week?
+            </button>
+          </div>
+        ) : (
+          messages.map((msg, index) => (
+            <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <p
+                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-5 ${
+                  msg.role === "user"
+                    ? "bg-[#15171b] text-white dark:bg-emerald-600"
+                    : msg.failed
+                      ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                      : "border border-black/5 bg-white text-black/75 dark:border-white/10 dark:bg-[#222832] dark:text-white/80"
+                }`}
+              >
+                {msg.text}
+              </p>
+            </div>
+          ))
+        )}
+        {busy ? (
+          <div className="flex justify-start">
+            <p className="rounded-2xl border border-black/5 bg-white px-3.5 py-2.5 text-xs text-black/45 dark:border-white/10 dark:bg-[#222832] dark:text-white/45">
+              Thinking…
+            </p>
+          </div>
+        ) : null}
+        <div ref={bottomRef} />
+      </div>
+
+      {notice ? <p className="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">{notice}</p> : null}
+
+      <form
+        className="mt-3 flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          send(draft);
+        }}
+      >
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          maxLength={500}
+          placeholder="Ask about your footprint…"
+          aria-label="Ask the AI coach"
+          className="field-input min-w-0 flex-1"
+        />
+        <button
+          type="submit"
+          disabled={busy || !draft.trim()}
+          aria-label="Send question"
+          className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl bg-[#15171b] text-white transition hover:bg-black active:scale-95 disabled:opacity-40 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+        >
+          <Send size={17} />
+        </button>
+      </form>
+      {!isPremium ? (
+        <p className="mt-2 text-[11px] text-black/45 dark:text-white/45">
+          Free plan: {dailyLimit} questions a day. Premium doubles it to 10.
+        </p>
+      ) : null}
     </motion.section>
   );
 }
@@ -1652,7 +1813,7 @@ export default function App() {
                       <StatisticsPanel trend={dashboard?.trend ?? []} />
                     </div>
                     <div className="lg:col-span-4">
-                      <Recommendations recommendations={recommendations} />
+                      <Recommendations recommendations={recommendations} onAction={goToLog} />
                     </div>
                   </div>
 
@@ -1702,12 +1863,13 @@ export default function App() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                     <div className="lg:col-span-6">
-                      <Recommendations recommendations={recommendations} />
+                      <Recommendations recommendations={recommendations} onAction={goToLog} />
                     </div>
                     <div className="lg:col-span-6">
                       <ForecastPanel forecast={dashboard?.forecast ?? []} />
                     </div>
                   </div>
+                  <ChatPanel userId={activeUserId} isPremium={isPremium} dailyLimit={isPremium ? 10 : 5} />
                   {isPremium ? (
                     <>
                       <PremiumBanner premiumUntil={premiumUntil} />

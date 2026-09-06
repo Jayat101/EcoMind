@@ -153,6 +153,23 @@ export async function equipTitle(userId, title) {
   }
 }
 
+export async function sendChatMessage(userId, message, history = []) {
+  try {
+    // LLM answers take 8-18 s (model thinking time) — allow 60 s before giving up.
+    const { data } = await api.post("/insights/chat", { userId, message, history }, { timeout: 60000 });
+    return data;
+  } catch (error) {
+    if (error?.response?.data) {
+      const err = new Error(error.response.data.message ?? "The AI coach is unavailable right now.");
+      err.status = error?.response?.status;
+      err.remaining = error.response.data.remaining;
+      err.limit = error.response.data.limit;
+      throw err;
+    }
+    throw new Error("Couldn't reach the AI coach — check your connection and retry.");
+  }
+}
+
 export async function sendVerificationCode(email) {
   const { data } = await api.post("/auth/send-verification", { email }, { timeout: 20000 });
   return data;

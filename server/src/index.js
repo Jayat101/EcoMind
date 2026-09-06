@@ -51,6 +51,13 @@ import {
   prestigeTitle,
   TOTAL_BADGE_COUNT
 } from "./lib/engine.js";
+import {
+  askCoach,
+  buildChatDigest,
+  MAX_QUESTION_CHARS,
+  questionsRemaining,
+  utcDateKey
+} from "./lib/aichat.js";
 import { computePremiumUntil, findShopItem, getShopCatalog } from "../../src/services/shop.js";
 import { buildFriends, buildLeaderboard, buildMonthlyChallenge, buildCommunityProfile } from "../../src/services/community.js";
 import {
@@ -115,7 +122,7 @@ async function buildDashboard(userId) {
     profile = { ...profile, ...protection };
   }
   const stats = calculateStats(entries, profile.weeklyEmissionTargetKg);
-  const recommendations = buildRecommendations(stats.categoryTotals);
+  const recommendations = buildRecommendations(entries, stats, profile);
   const trend = buildTrend(entries);
   const forecast = buildForecast(entries);
   const localEntries = entries.filter((entry) => entry.source !== "seed");
@@ -785,6 +792,72 @@ app.post("/api/prestige/:userId", async (req, res, next) => {
       rewardPoints: nextProfile.rewardPoints ?? 0,
       dashboard: await buildDashboard(userId)
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- AI coach chat: grounded Q&A over the user's own data ---
+app.post("/api/insights/chat", async (req, res, next) => {
+  try {
+    const { userId, message, history } = req.body ?? {};
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required." });
+    }
+    const question = String(message ?? "").trim();
+    if (!question) {
+      return res.status(400).json({ message: "Ask a question first." });
+    }
+    if (question.length > MAX_QUESTION_CHARS) {
+      return res.status(400).json({ message: `Keep questions under ${MAX_QUESTION_CHARS} characters.` });
+    }
+    let profile = null;
+    try {
+      profile = await ensureUser(userId);
+    } catch (error) {
+      return res.status(404).json({ message: "User not found. Please sign up or log in first." });
+    }
+
+    const today = utcDateKey();
+    const quota = questionsRemaining(profile, today);
+    if (quota.remaining <= 0) {
+      return res.status(429).json({
+        message: `You've used today's ${quota.limit} questions — back tomorrow. Premium doubles the daily allowance.`,
+        remaining: 0,
+        limit: quota.limit
+      });
+    }
+
+    const entries = await getEntries(userId);
+    const stats = calculateStats(entries, profile.weeklyEmissionTargetKg);
+    if (!entries.some((entry) => entry && entry.source !== "seed")) {
+      return res.json({
+        reply: "I don't have any of your logs yet — log your first days of activity and then ask me anything about your footprint.",
+        remaining: quota.remaining,
+        limit: quota.limit,
+        source: "engine"
+      });
+    }
+
+    const cards = buildRecommendations(entries, stats, profile);
+    const digest = buildChatDigest(entries, stats, profile);
+    const result = await askCoach({ digest, cards, history, question });
+    if (result.error) {
+      const status = result.error === "rate-limited" ? 429 : 503;
+      const messages = {
+        unconfigured: "The AI coach isn't connected yet — your recommendations below still work.",
+        "no-data": "Log your first days of activity and then ask me anything.",
+        "rate-limited": "Lots of people are asking right now — try again in a minute.",
+        provider: "The AI coach stumbled — try again in a moment.",
+        unreachable: "Couldn't reach the AI coach — check your connection and retry."
+      };
+      return res.status(status).json({ message: messages[result.error] ?? "The AI coach is unavailable right now." });
+    }
+
+    const used = profile?.aiChat?.date === today ? Number(profile.aiChat.used ?? 0) + 1 : 1;
+    await replaceUser(userId, { ...profile, aiChat: { date: today, used } });
+    const after = questionsRemaining({ ...profile, aiChat: { date: today, used } }, today);
+    res.json({ reply: result.reply, remaining: after.remaining, limit: after.limit, source: "llm" });
   } catch (error) {
     next(error);
   }
