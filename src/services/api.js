@@ -190,6 +190,18 @@ export async function loginUser(payload) {
   return data.user;
 }
 
+export async function changePassword(userId, { currentPassword, newPassword }) {
+  try {
+    const { data } = await api.post("/auth/change-password", { userId, currentPassword, newPassword });
+    return data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error("Could not change password. Please try again.");
+  }
+}
+
 export async function googleLogin(payload) {
   const { data } = await api.post("/auth/google", payload);
   return data.user;

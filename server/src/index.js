@@ -29,6 +29,7 @@ import {
   getGoogleFitTokens,
   sendForgotPasswordCode,
   resetPasswordWithCode,
+  changePassword,
   toggleGoingOutDay,
   sendFriendRequest,
   respondFriendRequest,
@@ -208,6 +209,19 @@ app.post("/api/auth/reset-password", async (req, res) => {
     }
     const user = await resetPasswordWithCode({ email, code, newPassword });
     res.json({ user, message: "Password reset successfully! You are now logged in." });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+app.post("/api/auth/change-password", async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !newPassword) {
+      return res.status(400).json({ message: "User ID and new password are required." });
+    }
+    const user = await changePassword({ userId, currentPassword, newPassword });
+    res.json({ user, message: "Password updated successfully!" });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

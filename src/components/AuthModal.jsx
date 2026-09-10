@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, CheckCircle2, ChevronDown, KeyRound, Loader2, Lock, Mail, MapPin, Target, User, X } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, ChevronDown, KeyRound, Loader2, Lock, Mail, MapPin, Target, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { INDIAN_CITIES } from "../constants/cities.js";
 import { googleLogin, googleSignup, loginUser, resetPasswordWithCode, sendForgotPasswordCode, sendVerificationCode, signupUser, verifyEmailCode } from "../services/api.js";
@@ -28,7 +28,7 @@ function GoogleLogoIcon() {
   );
 }
 
-export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
+export default function AuthModal({ isOpen, onClose, onAuthenticated, accounts = [], currentUserId = null, onSwitchAccount }) {
   const [mode, setMode] = useState("signin"); // "signin", "signup", or "forgot"
   const [signupStep, setSignupStep] = useState("details"); // "details" or "verify"
   const [forgotStep, setForgotStep] = useState("request"); // "request" or "reset"
@@ -389,6 +389,62 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated }) {
                   Sign Up
                 </button>
               </div>
+
+              {mode === "signin" && accounts.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold text-black/70 dark:text-white/70">Switch profile</p>
+                  <div className="space-y-1.5">
+                    {accounts.slice(0, 5).map((account) => {
+                      const isActive = account.userId === currentUserId;
+                      return (
+                        <button
+                          key={account.userId}
+                          type="button"
+                          disabled={isActive}
+                          onClick={() => onSwitchAccount?.(account)}
+                          className={`flex w-full items-center gap-3 rounded-2xl border p-2.5 text-left transition ${
+                            isActive
+                              ? "cursor-not-allowed border-[#0f5132]/40 bg-[#0f5132]/5 dark:border-emerald-500/40 dark:bg-emerald-500/10"
+                              : "border-black/8 bg-white hover:border-[#0f5132]/40 hover:bg-[#f0f7f1] dark:border-white/10 dark:bg-[#222832] dark:hover:border-emerald-500/40 dark:hover:bg-white/5"
+                          }`}
+                        >
+                          {account.picture ? (
+                            <img
+                              src={account.picture}
+                              alt=""
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0f5132] object-cover text-sm font-bold text-white uppercase"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0f5132] text-sm font-bold text-white uppercase">
+                              {account.name?.[0] ?? "U"}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-black dark:text-white">{account.name}</p>
+                            <p className="truncate text-[11px] text-black/50 dark:text-white/50">{account.email}</p>
+                          </div>
+                          {isActive ? (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#0f5132]/10 px-2.5 py-1 text-[10px] font-bold text-[#0f5132] dark:bg-emerald-500/15 dark:text-emerald-400">
+                              <CheckCircle2 size={11} />
+                              Current
+                            </span>
+                          ) : (
+                            <ArrowRight size={15} className="shrink-0 text-black/35 dark:text-white/35" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="my-4 flex items-center gap-2 text-[11px] text-black/35 dark:text-white/35">
+                    <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+                    or sign in to another account
+                    <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+                  </div>
+                </div>
+              )}
 
               {/* Google Sign In Button */}
               <div className="mt-5">

@@ -11,7 +11,7 @@ import LandingPage from "./components/LandingPage.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
 import ThemeToggle from "./components/ThemeToggle.jsx";
 import { usePremiumTheme } from "./hooks/usePremiumTheme.js";
-import { fetchDashboard, fetchEntries, resetUser, upsertUser, fetchUser, deleteCarbonEntry, redeemItem, prestigeUser, equipTitle, sendChatMessage, handleGoogleFitCallback, getTrackedTrips, saveTrackedTrip, deleteTrackedTrip, logTrackedTripToCarbon } from "./services/api.js";
+import { fetchDashboard, fetchEntries, resetUser, upsertUser, fetchUser, deleteCarbonEntry, redeemItem, prestigeUser, equipTitle, sendChatMessage, handleGoogleFitCallback, getTrackedTrips, saveTrackedTrip, deleteTrackedTrip, logTrackedTripToCarbon, changePassword } from "./services/api.js";
 
 
 const TravelAlternativesPanel = lazy(() => import("./components/TravelAlternativesPanel.jsx"));
@@ -1257,6 +1257,14 @@ export default function App() {
   const [trackedTrips, setTrackedTrips] = useState([]);
   const [travelTab, setTravelTab] = useState("track");
   const [oauthStatus, setOauthStatus] = useState(null);
+  const [savedAccounts, setSavedAccounts] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("ecomind_accounts_v1") ?? "[]");
+      return Array.isArray(saved) ? saved : [];
+    } catch {
+      return [];
+    }
+  });
   const handledCodeRef = useRef(null);
 
   useEffect(() => {
@@ -1368,7 +1376,35 @@ export default function App() {
     } catch {
       console.warn("Could not cache profile locally (image may be too large).");
     }
+    rememberAccount(user);
     setRefreshKey((key) => key + 1);
+  }
+
+  function rememberAccount(user) {
+    if (!user?.userId) return;
+    const account = {
+      userId: user.userId,
+      name: user.name ?? "User",
+      email: user.email ?? "",
+      city: user.city ?? "New Delhi",
+      picture: user.picture ?? null,
+      provider: user.provider ?? "email"
+    };
+    setSavedAccounts((prev) => {
+      const next = [account, ...(prev ?? []).filter((a) => a.userId !== account.userId && a.email !== account.email)];
+      const trimmed = next.slice(0, 10);
+      try {
+        localStorage.setItem("ecomind_accounts_v1", JSON.stringify(trimmed));
+      } catch {
+        console.warn("Could not cache switching profiles (image may be too large).");
+      }
+      return trimmed;
+    });
+  }
+
+  function handleSwitchAccount(account) {
+    handleAuthenticated(account);
+    setShowAuthModal(false);
   }
 
   function handleLogout() {
@@ -1390,6 +1426,7 @@ export default function App() {
       });
       setCurrentUser((prev) => ({ ...prev, ...updated, name, city, picture }));
       setAvatarFailed(false);
+      rememberAccount({ ...currentUser, ...updated, name, city, picture });
       try {
         localStorage.setItem(
           "ecomind_user_v1",
@@ -1404,6 +1441,11 @@ export default function App() {
     } finally {
       setShowEditProfile(false);
     }
+  }
+
+  async function handleChangePassword({ currentPassword, newPassword }) {
+    if (!activeUserId) throw new Error("You need to log in first.");
+    await changePassword(activeUserId, { currentPassword, newPassword });
   }
 
   async function handleResetData() {
@@ -1528,6 +1570,9 @@ export default function App() {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onAuthenticated={handleAuthenticated}
+        accounts={savedAccounts}
+        currentUserId={currentUser?.userId}
+        onSwitchAccount={handleSwitchAccount}
       />
 
       <EditProfileModal
@@ -1538,6 +1583,7 @@ export default function App() {
         onClose={() => setShowEditProfile(false)}
         onSave={handleUpdateProfile}
         onEquipTitle={handleEquipTitle}
+        onChangePassword={handleChangePassword}
       />
 
       <div className="grid min-h-[calc(100vh-0.5rem)] grid-cols-[64px_minmax(0,1fr)] gap-2 p-1.5 sm:min-h-[calc(100vh-2rem)] sm:grid-cols-[78px_minmax(0,1fr)] sm:gap-4 sm:p-2">

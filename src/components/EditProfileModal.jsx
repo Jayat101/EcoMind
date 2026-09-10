@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, Check, Crown, Loader2, MapPin, User, X } from "lucide-react";
+import { Camera, Check, Crown, KeyRound, Loader2, Lock, MapPin, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { INDIAN_CITIES } from "../constants/cities.js";
 
-export default function EditProfileModal({ isOpen, user, titles = [], equippedTitle = null, onClose, onSave, onEquipTitle }) {
+export default function EditProfileModal({ isOpen, user, titles = [], equippedTitle = null, onClose, onSave, onEquipTitle, onChangePassword }) {
   const [name, setName] = useState(user?.name ?? "");
   const [city, setCity] = useState(user?.city ?? "New Delhi");
   const [picture, setPicture] = useState(user?.picture ?? "");
@@ -13,6 +13,12 @@ export default function EditProfileModal({ isOpen, user, titles = [], equippedTi
   const [equipped, setEquipped] = useState(equippedTitle);
   const [titleBusy, setTitleBusy] = useState(false);
   const [titleError, setTitleError] = useState("");
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState("");
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -24,6 +30,11 @@ export default function EditProfileModal({ isOpen, user, titles = [], equippedTi
       setError("");
       setEquipped(equippedTitle ?? null);
       setTitleError("");
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+      setPwError("");
+      setPwSuccess("");
     }
   }, [isOpen, user]);
 
@@ -81,6 +92,40 @@ export default function EditProfileModal({ isOpen, user, titles = [], equippedTi
       setError(err?.message ?? "Failed to save profile. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleChangePasswordSubmit() {
+    setPwError("");
+    setPwSuccess("");
+    if (pwBusy) return;
+    if (user?.hasPassword && !pwCurrent.trim()) {
+      setPwError("Enter your current password.");
+      return;
+    }
+    if (!pwNew || pwNew.length < 6) {
+      setPwError("New password must be at least 6 characters.");
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      setPwError("New passwords don't match.");
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await onChangePassword?.({ currentPassword: pwCurrent, newPassword: pwNew });
+      setPwSuccess(
+        user?.hasPassword
+          ? "Password updated successfully!"
+          : "Password set! You can now sign in with your email and password."
+      );
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+    } catch (err) {
+      setPwError(err?.message ?? "Could not update password. Please try again.");
+    } finally {
+      setPwBusy(false);
     }
   }
 
@@ -229,6 +274,92 @@ export default function EditProfileModal({ isOpen, user, titles = [], equippedTi
                 <p className="mt-1.5 text-[11px] text-black/45 dark:text-white/45">
                   Earned by prestiging. Tap to show it on your profile.
                 </p>
+              </div>
+            ) : null}
+
+            {user ? (
+              <div className="mt-6 border-t border-black/10 pt-5 dark:border-white/10">
+                <div className="mb-3 flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0f5132]/10 text-[#0f5132] dark:bg-emerald-500/10 dark:text-emerald-400">
+                    <KeyRound size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-black/80 dark:text-white/80">
+                      {user?.hasPassword ? "Change Password" : "Set Password"}
+                    </p>
+                    {!user?.hasPassword ? (
+                      <p className="text-[11px] text-black/45 dark:text-white/45">
+                        No password yet — add one to sign in with your email.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {pwError ? (
+                  <div className="mb-3 rounded-2xl bg-red-50 p-3.5 text-xs text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20">
+                    {pwError}
+                  </div>
+                ) : null}
+                {pwSuccess ? (
+                  <div className="mb-3 rounded-2xl bg-emerald-50 p-3.5 text-xs text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20">
+                    {pwSuccess}
+                  </div>
+                ) : null}
+
+                <div className="space-y-3">
+                  {user?.hasPassword ? (
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-black/70 dark:text-white/70">
+                        Current Password
+                      </label>
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        value={pwCurrent}
+                        onChange={(e) => setPwCurrent(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-2xl border border-black/15 bg-white px-4 py-3 text-sm font-medium text-black focus:border-[#0f5132] focus:outline-none dark:border-white/15 dark:bg-[#222832] dark:text-white dark:focus:border-emerald-500"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-black/70 dark:text-white/70">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={pwNew}
+                        onChange={(e) => setPwNew(e.target.value)}
+                        placeholder="At least 6 characters"
+                        className="w-full rounded-2xl border border-black/15 bg-white px-4 py-3 text-sm font-medium text-black focus:border-[#0f5132] focus:outline-none dark:border-white/15 dark:bg-[#222832] dark:text-white dark:focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-black/70 dark:text-white/70">
+                        Confirm New Password
+                      </label>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={pwConfirm}
+                        onChange={(e) => setPwConfirm(e.target.value)}
+                        placeholder="Re-type new password"
+                        className="w-full rounded-2xl border border-black/15 bg-white px-4 py-3 text-sm font-medium text-black focus:border-[#0f5132] focus:outline-none dark:border-white/15 dark:bg-[#222832] dark:text-white dark:focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pwBusy}
+                    onClick={handleChangePasswordSubmit}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#0f5132]/30 bg-[#0f5132]/10 py-3 text-sm font-semibold text-[#0f5132] transition hover:bg-[#0f5132]/20 active:scale-[0.99] disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+                  >
+                    {pwBusy ? <Loader2 size={18} className="animate-spin" /> : <Lock size={15} />}
+                    {user?.hasPassword ? "Update Password" : "Set Password"}
+                  </button>
+                </div>
               </div>
             ) : null}
           </form>

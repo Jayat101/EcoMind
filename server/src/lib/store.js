@@ -36,7 +36,11 @@ function verifyPassword(password, storedHash) {
 function sanitizeUser(user) {
   if (!user) return null;
   const { passwordHash, googleFit, ...safe } = user;
-  return { ...safe, googleFitConnected: Boolean(googleFit?.refreshToken || googleFit?.accessToken) };
+  return {
+    ...safe,
+    hasPassword: Boolean(passwordHash),
+    googleFitConnected: Boolean(googleFit?.refreshToken || googleFit?.accessToken)
+  };
 }
 
 const initialState = {
@@ -805,6 +809,29 @@ export async function resetPasswordWithCode({ email, code, newPassword }) {
 
   if (!user) {
     throw new Error("User account not found.");
+  }
+
+  user.passwordHash = hashPassword(newPassword);
+  state.users[user.userId] = user;
+  await saveState(state);
+
+  return sanitizeUser(user);
+}
+
+export async function changePassword({ userId, currentPassword, newPassword }) {
+  const state = await loadState();
+  const user = state.users[userId];
+
+  if (!user) {
+    throw new Error("User account not found.");
+  }
+
+  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters long.");
+  }
+
+  if (user.passwordHash && !verifyPassword(currentPassword, user.passwordHash)) {
+    throw new Error("Current password is incorrect.");
   }
 
   user.passwordHash = hashPassword(newPassword);
