@@ -29,9 +29,9 @@ function getTransporter() {
       secure: port === 465,
       auth: { user, pass },
       ...(isGmail || port === 587 ? { tls: { rejectUnauthorized: false } } : {}),
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 8000
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 25000
     });
   }
 
@@ -168,20 +168,33 @@ export async function sendEmailVerificationCode(toEmail, code) {
     try {
       const result = await sendMailWithTimeout();
       if (result.timedOut) {
-        console.warn(`[MAILER TIMEOUT] SMTP delivery to ${toEmail} timed out after 12s. Using dev fallback code.`);
+        console.warn(`[MAILER TIMEOUT] SMTP delivery to ${toEmail} timed out after 30s. Using dev fallback code.`);
         return { success: false, sent: false, reason: "timeout" };
       } else if (result.success) {
         console.log(`[MAILER SUCCESS] 📧 Sent verification code to ${toEmail}. Message ID: ${result.info.messageId}`);
         return { success: true, sent: true };
       } else {
         const reason = classifyMailError(result.err);
-        console.error(`[MAILER ERROR] Direct delivery failed (${reason}): ${result.err?.message ?? "Unknown error"}`);
-        return { success: false, sent: false, reason, detail: String(result.err?.message ?? "").slice(0, 300) };
+        const detail = [
+          result.err?.code,
+          result.err?.command,
+          result.err?.responseCode,
+          result.err?.message
+        ]
+          .filter(Boolean)
+          .join(" | ")
+          .slice(0, 400);
+        console.error(`[MAILER ERROR] Direct delivery failed (${reason}): ${detail || "Unknown error"}`);
+        return { success: false, sent: false, reason, detail };
       }
     } catch (err) {
       const reason = classifyMailError(err);
-      console.error(`[MAILER ERROR] Direct delivery exception (${reason}): ${err.message}`);
-      return { success: false, sent: false, reason };
+      const detail = [err?.code, err?.command, err?.responseCode, err?.message]
+        .filter(Boolean)
+        .join(" | ")
+        .slice(0, 400);
+      console.error(`[MAILER ERROR] Direct delivery exception (${reason}): ${detail || "Unknown error"}`);
+      return { success: false, sent: false, reason, detail };
     }
   }
 
