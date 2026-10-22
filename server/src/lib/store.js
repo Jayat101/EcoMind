@@ -349,7 +349,7 @@ export async function sendVerificationCode(email) {
     await saveState(state);
   }
 
-  return { email: normalizedEmail, expiresAt, sent: result.sent, code };
+  return { email: normalizedEmail, expiresAt, sent: result.sent, code, reason: result.reason ?? null };
 }
 
 export async function verifyCode(email, code) {
@@ -797,7 +797,7 @@ export async function sendForgotPasswordCode(email) {
   await saveState(state);
 
   const result = await sendEmailVerificationCode(normalizedEmail, code);
-  return { email: normalizedEmail, expiresAt, sent: result.sent, code };
+  return { email: normalizedEmail, expiresAt, sent: result.sent, code, reason: result.reason ?? null };
 }
 
 export async function resetPasswordWithCode({ email, code, newPassword }) {

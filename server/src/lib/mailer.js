@@ -90,6 +90,26 @@ function getTransporter() {
   return null;
 }
 
+// Classifies an SMTP failure into a short, non-sensitive reason so ops can
+// tell "wrong password" apart from "network blocked" without leaking secrets.
+function classifyMailError(err) {
+  const code = String(err?.code ?? "").toUpperCase();
+  const message = String(err?.message ?? "").toLowerCase();
+  if (code === "EAUTH" || message.includes("invalid login") || message.includes("authentication failed") || message.includes("535") || message.includes("credential")) {
+    return "auth_failed";
+  }
+  if (code === "ETIMEDOUT" || code === "ESOCKETTIMEDOUT" || message.includes("timeout")) {
+    return "timeout";
+  }
+  if (code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "EAI_AGAIN" || code === "ECONNRESET") {
+    return "network";
+  }
+  if (message.includes("blocked") || message.includes("unauthenticated")) {
+    return "blocked";
+  }
+  return "smtp_error";
+}
+
 export async function sendEmailVerificationCode(toEmail, code) {
   const defaultFrom = process.env.EMAIL_USER
     ? `"EcoMind Verification" <${process.env.EMAIL_USER}>`
@@ -146,19 +166,24 @@ export async function sendEmailVerificationCode(toEmail, code) {
       const result = await sendMailWithTimeout();
       if (result.timedOut) {
         console.warn(`[MAILER TIMEOUT] SMTP delivery to ${toEmail} timed out after 12s. Using dev fallback code.`);
+        return { success: false, sent: false, reason: "timeout" };
       } else if (result.success) {
         console.log(`[MAILER SUCCESS] 📧 Sent verification code to ${toEmail}. Message ID: ${result.info.messageId}`);
         return { success: true, sent: true };
       } else {
-        console.error(`[MAILER ERROR] Direct delivery failed: ${result.err?.message ?? "Unknown error"}`);
+        const reason = classifyMailError(result.err);
+        console.error(`[MAILER ERROR] Direct delivery failed (${reason}): ${result.err?.message ?? "Unknown error"}`);
+        return { success: false, sent: false, reason };
       }
     } catch (err) {
-      console.error(`[MAILER ERROR] Direct delivery exception: ${err.message}`);
+      const reason = classifyMailError(err);
+      console.error(`[MAILER ERROR] Direct delivery exception (${reason}): ${err.message}`);
+      return { success: false, sent: false, reason };
     }
   }
 
   console.log(`[MAILER DEV] 💡 Verification code for ${toEmail}: ${code}`);
   console.log("[MAILER BACKUP] SMTP delivery unavailable — verification code generated for dev mode.");
-  return { success: true, sent: false };
+  return { success: true, sent: false, reason: "not_configured" };
 }
 

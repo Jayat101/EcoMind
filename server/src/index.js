@@ -167,11 +167,12 @@ app.post("/api/auth/send-verification", async (req, res) => {
       // In production a failed send must never hand the code back to the
       // caller — that would defeat email verification entirely.
       if (isProduction()) {
-        console.error("[AUTH] Verification email delivery failed on production server.");
+        console.error(`[AUTH] Verification email delivery failed on production server (${result.reason ?? "unknown"}).`);
         return res.status(503).json({
           success: false,
           sent: false,
           email: result.email,
+          reason: result.reason ?? "smtp_error",
           message: "We couldn't send the verification email right now. Please try again in a few minutes."
         });
       }
@@ -216,11 +217,12 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const result = await sendForgotPasswordCode(email);
     if (!result.sent) {
       if (isProduction()) {
-        console.error("[AUTH] Password reset email delivery failed on production server.");
+        console.error(`[AUTH] Password reset email delivery failed on production server (${result.reason ?? "unknown"}).`);
         return res.status(503).json({
           success: false,
           sent: false,
           email: result.email,
+          reason: result.reason ?? "smtp_error",
           message: "We couldn't send the reset email right now. Please try again in a few minutes."
         });
       }
