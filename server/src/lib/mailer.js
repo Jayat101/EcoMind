@@ -46,9 +46,9 @@ function getTransporter() {
       tls: {
         rejectUnauthorized: false
       },
-      connectionTimeout: 12000,
-      greetingTimeout: 12000,
-      socketTimeout: 15000
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 25000
     });
   }
 
@@ -144,8 +144,11 @@ export async function sendEmailVerificationCode(toEmail, code) {
   if (transporter) {
     const sendMailWithTimeout = async () => {
       let timer;
+      // Cold SMTP handshakes from a cloud container (DNS + TCP + STARTTLS +
+      // auth) can take well over 10s, so allow a generous budget before
+      // treating delivery as failed.
       const timeout = new Promise((resolve) => {
-        timer = setTimeout(() => resolve({ success: false, timedOut: true }), 12000);
+        timer = setTimeout(() => resolve({ success: false, timedOut: true }), 30000);
       });
       const attempt = transporter
         .sendMail({

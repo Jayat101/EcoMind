@@ -185,7 +185,8 @@ export function describeCodeDelivery(data, email, kind = "verification") {
 }
 
 export async function sendVerificationCode(email) {
-  const { data } = await api.post("/auth/send-verification", { email }, { timeout: 20000 });
+  // SMTP delivery can take ~15-25s on a cold cloud container.
+  const { data } = await api.post("/auth/send-verification", { email }, { timeout: 45000 });
   return data;
 }
 
@@ -344,7 +345,7 @@ export async function disconnectGoogleFit(userId) {
 }
 
 export async function sendForgotPasswordCode(email) {
-  const { data } = await api.post("/auth/forgot-password", { email });
+  const { data } = await api.post("/auth/forgot-password", { email }, { timeout: 45000 });
   return data;
 }
 
