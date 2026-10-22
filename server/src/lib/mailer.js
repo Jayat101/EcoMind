@@ -153,6 +153,196 @@ function parseSender(from) {
 }
 
 // Render's free tier blocks outbound SMTP (ports 25/465/587), so production
+// uses an HTTPS endpoint instead. Google Apps Script is the preferred path:
+// it sends through the account owner's real Gmail without OAuth token expiry.
+async function sendViaAppsScript({ toEmail, subject, htmlContent, textContent }) {
+  const url = (process.env.GMAIL_SCRIPT_URL || "").trim();
+  const secret = (process.env.GMAIL_SCRIPT_SECRET || "").trim();
+  if (!url) {
+    return null;
+  }
+  if (!secret) {
+    return {
+      success: false,
+      sent: false,
+      reason: "provider_config",
+      detail: "Set GMAIL_SCRIPT_SECRET to the same value used in the Apps Script."
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json"
+      },
+      body: JSON.stringify({
+        secret,
+        to: toEmail,
+        subject,
+        html: htmlContent,
+        text: textContent
+      }),
+      redirect: "follow",
+      signal: controller.signal
+    });
+
+    const rawBody = await response.text();
+    let parsed = null;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      // Apps Script returns an HTML sign-in page when the deployment is not
+      // shared with "Anyone".
+    }
+
+    if (!response.ok) {
+      const reason =
+        response.status === 401 || response.status === 403
+          ? "provider_auth"
+          : response.status === 429
+            ? "provider_rate_limited"
+            : "provider_error";
+      const detail = `Apps Script HTTP ${response.status}: ${rawBody}`.slice(0, 400);
+      console.error(`[MAILER ERROR] Apps Script delivery failed (${reason}): ${detail}`);
+      return { success: false, sent: false, reason, detail };
+    }
+
+    if (!parsed) {
+      const detail =
+        "Apps Script returned HTML instead of JSON. Redeploy the web app with access set to Anyone.";
+      console.error(`[MAILER ERROR] Apps Script delivery failed (provider_config): ${detail}`);
+      return { success: false, sent: false, reason: "provider_config", detail };
+    }
+
+    if (!parsed.ok) {
+      const reason =
+        parsed.error === "unauthorized" ? "provider_auth" : "provider_error";
+      const detail = `Apps Script: ${parsed.error || "unknown error"}`.slice(0, 400);
+      console.error(`[MAILER ERROR] Apps Script rejected message (${reason}): ${detail}`);
+      return { success: false, sent: false, reason, detail };
+    }
+
+    console.log(
+      `[MAILER SUCCESS] 📧 Apps Script sent verification email to ${toEmail}. Remaining quota: ${parsed.remaining ?? "unknown"}.`
+    );
+    return { success: true, sent: true };
+  } catch (err) {
+    const reason = err?.name === "AbortError" ? "timeout" : "provider_network";
+    const detail = [err?.name, err?.message].filter(Boolean).join(" | ").slice(0, 400);
+    console.error(`[MAILER ERROR] Apps Script delivery exception (${reason}): ${detail || "Unknown error"}`);
+    return { success: false, sent: false, reason, detail };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Render's free tier blocks outbound SMTP (ports 25/465/587), so production
+// uses an HTTPS email API instead. Mailjet is preferred; Brevo is kept as an
+// alternative. SMTP remains the local/paid-instance path.
+async function sendViaMailjet({ toEmail, subject, htmlContent, textContent, from }) {
+  const apiKey = (process.env.MAILJET_API_KEY || "").trim();
+  const secretKey = (process.env.MAILJET_SECRET_KEY || "").trim();
+  if (!apiKey && !secretKey) {
+    return null;
+  }
+  if (!apiKey || !secretKey) {
+    return {
+      success: false,
+      sent: false,
+      reason: "provider_config",
+      detail: "Set both MAILJET_API_KEY and MAILJET_SECRET_KEY."
+    };
+  }
+
+  const sender = parseSender(
+    process.env.MAILJET_SENDER_EMAIL
+      ? `"EcoMind Verification" <${process.env.MAILJET_SENDER_EMAIL.trim()}>`
+      : from
+  );
+  if (!sender.email) {
+    return {
+      success: false,
+      sent: false,
+      reason: "provider_config",
+      detail: "Set MAILJET_SENDER_EMAIL or EMAIL_USER to a sender verified in Mailjet."
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  const auth = Buffer.from(`${apiKey}:${secretKey}`).toString("base64");
+
+  try {
+    const response = await fetch("https://api.mailjet.com/v3.1/send", {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${auth}`,
+        "content-type": "application/json",
+        accept: "application/json"
+      },
+      body: JSON.stringify({
+        Messages: [
+          {
+            From: sender,
+            To: [{ Email: toEmail }],
+            Subject: subject,
+            TextPart: textContent,
+            HTMLPart: htmlContent
+          }
+        ]
+      }),
+      signal: controller.signal
+    });
+
+    const rawBody = await response.text();
+    let parsed = null;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      // keep raw body
+    }
+
+    if (!response.ok) {
+      const message =
+        parsed?.ErrorMessage || parsed?.message || rawBody || response.statusText;
+      const reason =
+        response.status === 401 || response.status === 403
+          ? "provider_auth"
+          : response.status === 429
+            ? "provider_rate_limited"
+            : "provider_error";
+      const detail = `Mailjet HTTP ${response.status}: ${message}`.slice(0, 400);
+      console.error(`[MAILER ERROR] Mailjet delivery failed (${reason}): ${detail}`);
+      return { success: false, sent: false, reason, detail };
+    }
+
+    const status = parsed?.Messages?.[0]?.Status;
+    if (status && status !== "success") {
+      const detail = `Mailjet status ${status}: ${JSON.stringify(
+        parsed.Messages[0].Errors || parsed.Messages[0]
+      )}`.slice(0, 400);
+      console.error(`[MAILER ERROR] Mailjet rejected message: ${detail}`);
+      return { success: false, sent: false, reason: "provider_error", detail };
+    }
+
+    console.log(`[MAILER SUCCESS] 📧 Mailjet accepted verification email to ${toEmail}.`);
+    return { success: true, sent: true };
+  } catch (err) {
+    const reason = err?.name === "AbortError" ? "timeout" : "provider_network";
+    const detail = [err?.name, err?.message].filter(Boolean).join(" | ").slice(0, 400);
+    console.error(`[MAILER ERROR] Mailjet delivery exception (${reason}): ${detail || "Unknown error"}`);
+    return { success: false, sent: false, reason, detail };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Render's free tier blocks outbound SMTP (ports 25/465/587), so production
 // uses Brevo's HTTPS API instead. SMTP remains the local/paid-instance path.
 async function sendViaBrevo({ toEmail, subject, htmlContent, textContent, from }) {
   const apiKey = (process.env.BREVO_API_KEY || "").trim();
@@ -228,8 +418,12 @@ async function sendViaBrevo({ toEmail, subject, htmlContent, textContent, from }
 }
 
 export async function sendEmailVerificationCode(toEmail, code) {
-  const senderEmail =
-    (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || "").trim();
+  const senderEmail = (
+    process.env.MAILJET_SENDER_EMAIL ||
+    process.env.BREVO_SENDER_EMAIL ||
+    process.env.EMAIL_USER ||
+    ""
+  ).trim();
   const defaultFrom = senderEmail
     ? `"EcoMind Verification" <${senderEmail}>`
     : '"EcoMind Verification" <no-reply@ecomind.org>';
@@ -257,6 +451,27 @@ export async function sendEmailVerificationCode(toEmail, code) {
   `;
 
   const textContent = `Your EcoMind verification code is: ${code}\n\nThis code expires in 10 minutes.`;
+
+  const appsScriptResult = await sendViaAppsScript({
+    toEmail,
+    subject,
+    htmlContent,
+    textContent
+  });
+  if (appsScriptResult) {
+    return appsScriptResult;
+  }
+
+  const mailjetResult = await sendViaMailjet({
+    toEmail,
+    subject,
+    htmlContent,
+    textContent,
+    from
+  });
+  if (mailjetResult) {
+    return mailjetResult;
+  }
 
   const brevoResult = await sendViaBrevo({
     toEmail,

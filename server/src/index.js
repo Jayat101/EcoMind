@@ -113,11 +113,24 @@ app.get("/api/health", (req, res) => {
     (process.env.EMAIL_USER || process.env.SMTP_USER) &&
       (process.env.EMAIL_PASS || process.env.SMTP_PASS)
   );
-  const emailProvider = (process.env.BREVO_API_KEY || "").trim()
-    ? "brevo"
-    : hasSmtp
-      ? "smtp"
-      : "none";
+  const hasAppsScript = Boolean(
+    (process.env.GMAIL_SCRIPT_URL || "").trim() &&
+      (process.env.GMAIL_SCRIPT_SECRET || "").trim()
+  );
+  const hasMailjet = Boolean(
+    (process.env.MAILJET_API_KEY || "").trim() &&
+      (process.env.MAILJET_SECRET_KEY || "").trim()
+  );
+  const hasBrevo = Boolean((process.env.BREVO_API_KEY || "").trim());
+  const emailProvider = hasAppsScript
+    ? "gmail_apps_script"
+    : hasMailjet
+      ? "mailjet"
+      : hasBrevo
+        ? "brevo"
+        : hasSmtp
+          ? "smtp"
+          : "none";
   res.json({
     ok: true,
     db: process.env.MONGODB_URI ? "mongodb" : "json",
@@ -183,7 +196,6 @@ app.post("/api/auth/send-verification", async (req, res) => {
           sent: false,
           email: result.email,
           reason: result.reason ?? "smtp_error",
-          detail: result.detail ?? null,
           message: "We couldn't send the verification email right now. Please try again in a few minutes."
         });
       }
@@ -234,7 +246,6 @@ app.post("/api/auth/forgot-password", async (req, res) => {
           sent: false,
           email: result.email,
           reason: result.reason ?? "smtp_error",
-          detail: result.detail ?? null,
           message: "We couldn't send the reset email right now. Please try again in a few minutes."
         });
       }
