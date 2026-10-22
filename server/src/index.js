@@ -109,7 +109,11 @@ function isProduction() {
 }
 
 app.get("/api/health", (req, res) => {
-  res.json({ ok: true, db: process.env.MONGODB_URI ? "mongodb" : "json" });
+  res.json({
+    ok: true,
+    db: process.env.MONGODB_URI ? "mongodb" : "json",
+    emailConfigured: Boolean((process.env.EMAIL_USER || process.env.SMTP_USER) && (process.env.EMAIL_PASS || process.env.SMTP_PASS))
+  });
 });
 
 async function ensureUser(userId) {

@@ -10,8 +10,10 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 function getTransporter() {
   const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+  // Gmail app passwords are often pasted as "abcd efgh ijkl mnop" — strip
+  // every space so a copy-paste from the Google account page still works.
+  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || "").trim();
+  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || "").replace(/\s+/g, "");
   const port = Number(process.env.SMTP_PORT || process.env.EMAIL_PORT || 587);
 
   if (!user || !pass) {
