@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, ArrowRight, Award, BarChart3, Bot, CheckCircle2, ChevronDown, Eye, EyeOff, KeyRound, Loader2, Lock, Mail, MapPin, ShieldCheck, Sparkles, Target, User, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { INDIAN_CITIES } from "../constants/cities.js";
-import { googleLogin, googleSignup, loginUser, resetPasswordWithCode, sendForgotPasswordCode, sendVerificationCode, signupUser, verifyEmailCode } from "../services/api.js";
+import { googleLogin, googleSignup, loginUser, resetPasswordWithCode, sendForgotPasswordCode, sendVerificationCode, signupUser, verifyEmailCode, describeCodeDelivery } from "../services/api.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 
 // SVG Google Logo
@@ -82,8 +82,7 @@ export default function LandingPage({ onAuthenticated }) {
     setLoading(true);
     try {
       const data = await sendVerificationCode(form.email.trim());
-      const devHint = data?.devCode ? ` Dev code: ${data.devCode}` : "";
-      setSuccessMsg(`Verification code sent to ${form.email.trim()}! Please check your email inbox.${devHint}`);
+      setSuccessMsg(describeCodeDelivery(data, form.email.trim(), "verification"));
       setSignupStep("verify");
     } catch (err) {
       setError(err.response?.data?.message ?? err.message ?? "Failed to send verification code.");
@@ -124,8 +123,7 @@ export default function LandingPage({ onAuthenticated }) {
     setLoading(true);
     try {
       const data = await sendForgotPasswordCode(form.email.trim());
-      const devHint = data?.devCode ? ` Dev code: ${data.devCode}` : "";
-      setSuccessMsg(`Password reset code sent to ${form.email.trim()}! Please check your email inbox.${devHint}`);
+      setSuccessMsg(describeCodeDelivery(data, form.email.trim(), "reset"));
       setForgotStep("reset");
     } catch (err) {
       setError(err.response?.data?.message ?? err.message ?? "Failed to send reset code.");

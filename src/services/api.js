@@ -170,6 +170,20 @@ export async function sendChatMessage(userId, message, history = []) {
   }
 }
 
+// Verification / reset codes are only ever shown on screen in local
+// development. Production builds never reveal a code inline, even if a
+// response somehow carries one.
+export function describeCodeDelivery(data, email, kind = "verification") {
+  const label = kind === "reset" ? "Password reset" : "Verification";
+  if (data?.sent) {
+    return `📧 ${label} code sent to ${email}! Please check your inbox.`;
+  }
+  if (import.meta.env.DEV && data?.devCode) {
+    return `💡 Email delivery offline. Use ${kind === "reset" ? "reset" : "verification"} code: ${data.devCode}`;
+  }
+  return data?.message ?? `We couldn't send the ${label.toLowerCase()} email right now. Please try again in a few minutes.`;
+}
+
 export async function sendVerificationCode(email) {
   const { data } = await api.post("/auth/send-verification", { email }, { timeout: 20000 });
   return data;

@@ -102,6 +102,12 @@ app.use(
 app.use(express.json({ limit: "30mb" }));
 app.use(morgan("dev"));
 
+// Development-only affordances (like showing verification codes on screen)
+// must never leak to production, where email delivery is the only channel.
+function isProduction() {
+  return String(process.env.NODE_ENV ?? "").toLowerCase() === "production";
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, db: process.env.MONGODB_URI ? "mongodb" : "json" });
 });
@@ -153,14 +159,31 @@ app.post("/api/auth/send-verification", async (req, res) => {
       return res.status(400).json({ message: "Email is required." });
     }
     const result = await sendVerificationCode(email);
+    if (!result.sent) {
+      // In production a failed send must never hand the code back to the
+      // caller — that would defeat email verification entirely.
+      if (isProduction()) {
+        console.error("[AUTH] Verification email delivery failed on production server.");
+        return res.status(503).json({
+          success: false,
+          sent: false,
+          email: result.email,
+          message: "We couldn't send the verification email right now. Please try again in a few minutes."
+        });
+      }
+      return res.json({
+        success: true,
+        sent: false,
+        email: result.email,
+        message: `💡 Email delivery offline. Use verification code: ${result.code} to complete registration.`,
+        devCode: result.code
+      });
+    }
     res.json({
       success: true,
-      sent: result.sent,
+      sent: true,
       email: result.email,
-      message: result.sent
-        ? `📧 Verification code sent to ${result.email}! Please check your inbox.`
-        : `💡 Email delivery offline. Use verification code: ${result.code} to complete registration.`,
-      ...(!result.sent ? { devCode: result.code } : {})
+      message: `📧 Verification code sent to ${result.email}! Please check your inbox.`
     });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -187,14 +210,29 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       return res.status(400).json({ message: "Email is required." });
     }
     const result = await sendForgotPasswordCode(email);
+    if (!result.sent) {
+      if (isProduction()) {
+        console.error("[AUTH] Password reset email delivery failed on production server.");
+        return res.status(503).json({
+          success: false,
+          sent: false,
+          email: result.email,
+          message: "We couldn't send the reset email right now. Please try again in a few minutes."
+        });
+      }
+      return res.json({
+        success: true,
+        sent: false,
+        email: result.email,
+        message: `💡 Email delivery offline. Use reset code: ${result.code} to reset your password.`,
+        devCode: result.code
+      });
+    }
     res.json({
       success: true,
-      sent: result.sent,
+      sent: true,
       email: result.email,
-      message: result.sent
-        ? `📧 Password reset code sent to ${result.email}! Please check your inbox.`
-        : `💡 Email delivery offline. Use reset code: ${result.code} to reset your password.`,
-      ...(!result.sent ? { devCode: result.code } : {})
+      message: `📧 Password reset code sent to ${result.email}! Please check your inbox.`
     });
   } catch (error) {
     res.status(400).json({ message: error.message });

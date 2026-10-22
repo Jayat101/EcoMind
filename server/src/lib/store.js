@@ -342,6 +342,13 @@ export async function sendVerificationCode(email) {
   // 4. Send email via Nodemailer
   const result = await sendEmailVerificationCode(normalizedEmail, code);
 
+  // If delivery failed there is no way for the user to receive the code, so
+  // discard it — otherwise an unverified code would sit in the store.
+  if (!result.sent) {
+    delete state.verificationCodes[normalizedEmail];
+    await saveState(state);
+  }
+
   return { email: normalizedEmail, expiresAt, sent: result.sent, code };
 }
 

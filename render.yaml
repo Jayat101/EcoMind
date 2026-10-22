@@ -21,7 +21,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CLIENT_ORIGIN
-        value: https://ecomind.onrender.com
+        value: https://ecomind-jqaw.onrender.com
       - key: MONGODB_DB
         value: ecomind
       # Secrets — set these in Render dashboard on first deploy (sync: false

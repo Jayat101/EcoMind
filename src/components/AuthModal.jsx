@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, ArrowRight, CheckCircle2, ChevronDown, KeyRound, Loader2, Lock, Mail, MapPin, Target, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { INDIAN_CITIES } from "../constants/cities.js";
-import { googleLogin, googleSignup, loginUser, resetPasswordWithCode, sendForgotPasswordCode, sendVerificationCode, signupUser, verifyEmailCode } from "../services/api.js";
+import { googleLogin, googleSignup, loginUser, resetPasswordWithCode, sendForgotPasswordCode, sendVerificationCode, signupUser, verifyEmailCode, describeCodeDelivery } from "../services/api.js";
 
 // SVG Google Logo
 function GoogleLogoIcon() {
@@ -78,10 +78,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated, accounts =
     if (!form.password || form.password.length < 6) throw new Error("Password must be at least 6 characters.");
 
     const data = await sendVerificationCode(cleanEmail);
-    const msg = data.message ?? (data.sent
-      ? `📧 Verification code sent to ${cleanEmail}! Please check your inbox.`
-      : `💡 Email delivery offline. Use verification code: ${data.devCode} to complete sign-up.`);
-    setSuccessMsg(msg);
+    setSuccessMsg(describeCodeDelivery(data, cleanEmail, "verification"));
     setSignupStep("verify");
   }
 
@@ -90,10 +87,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated, accounts =
     if (!cleanEmail) throw new Error("Please enter your registered email address.");
 
     const data = await sendForgotPasswordCode(cleanEmail);
-    const msg = data.message ?? (data.sent
-      ? `📧 Password reset code sent to ${cleanEmail}! Please check your inbox.`
-      : `💡 Email delivery offline. Use reset code: ${data.devCode} to reset your password.`);
-    setSuccessMsg(msg);
+    setSuccessMsg(describeCodeDelivery(data, cleanEmail, "reset"));
     setForgotStep("reset");
   }
 
@@ -117,16 +111,10 @@ export default function AuthModal({ isOpen, onClose, onAuthenticated, accounts =
     try {
       if (mode === "forgot") {
         const data = await sendForgotPasswordCode(cleanEmail);
-        const msg = data.message ?? (data.sent
-          ? `📧 A new reset code was sent to ${cleanEmail}.`
-          : `💡 Email delivery offline. Use reset code: ${data.devCode}`);
-        setSuccessMsg(msg);
+        setSuccessMsg(describeCodeDelivery(data, cleanEmail, "reset"));
       } else {
         const data = await sendVerificationCode(cleanEmail);
-        const msg = data.message ?? (data.sent
-          ? `📧 A new verification code was sent to ${cleanEmail}.`
-          : `💡 Email delivery offline. Use verification code: ${data.devCode}`);
-        setSuccessMsg(msg);
+        setSuccessMsg(describeCodeDelivery(data, cleanEmail, "verification"));
       }
     } catch (err) {
       setError(err.response?.data?.message ?? err.message ?? "Failed to resend code.");
