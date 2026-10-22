@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import dns from "node:dns/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,7 +9,52 @@ dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
-function getTransporter() {
+// Some container hosts resolve AAAA records but have no IPv6 route, so
+// Nodemailer connects to the IPv6 address and fails with ENETUNREACH.
+// Resolve an A record up front and connect to the literal IPv4 address.
+async function resolveIPv4(hostname) {
+  if (!hostname || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    return hostname;
+  }
+  try {
+    const { address } = await dns.lookup(hostname, { family: 4 });
+    if (address) return address;
+  } catch {
+    // fall through to resolve4
+  }
+  try {
+    const addresses = await dns.resolve4(hostname);
+    if (addresses?.length) return addresses[0];
+  } catch {
+    // fall back to the original hostname
+  }
+  return hostname;
+}
+
+async function buildTransport({ host, port, secure, user, pass }) {
+  const connectHost = await resolveIPv4(host);
+  const useTls = secure || port === 465 || port === 587 || host.includes("gmail.com");
+
+  return nodemailer.createTransport({
+    host: connectHost,
+    port,
+    secure: secure || port === 465,
+    auth: { user, pass },
+    ...(useTls
+      ? {
+          tls: {
+            servername: host,
+            rejectUnauthorized: false
+          }
+        }
+      : {}),
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 25000
+  });
+}
+
+async function getTransporter() {
   const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
   // Gmail app passwords are often pasted as "abcd efgh ijkl mnop" — strip
   // every space so a copy-paste from the Google account page still works.
@@ -22,68 +68,50 @@ function getTransporter() {
 
   // Explicit host provided
   if (host) {
-    const isGmail = host.includes("gmail.com");
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-      ...(isGmail || port === 587 ? { tls: { rejectUnauthorized: false } } : {}),
-      connectionTimeout: 20000,
-      greetingTimeout: 20000,
-      socketTimeout: 25000
-    });
+    return buildTransport({ host, port, secure: port === 465, user, pass });
   }
 
   // Auto-detect service by email domain
   const cleanUser = user.trim().toLowerCase();
   if (cleanUser.endsWith("@gmail.com")) {
-    return nodemailer.createTransport({
+    return buildTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 20000,
-      greetingTimeout: 20000,
-      socketTimeout: 25000
+      user,
+      pass
     });
   }
 
   if (cleanUser.endsWith("@outlook.com") || cleanUser.endsWith("@hotmail.com")) {
-    return nodemailer.createTransport({
-      service: "hotmail",
-      auth: { user, pass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000
+    return buildTransport({
+      host: "smtp-mail.outlook.com",
+      port: 587,
+      secure: false,
+      user,
+      pass
     });
   }
 
   if (cleanUser.endsWith("@yahoo.com")) {
-    return nodemailer.createTransport({
-      service: "yahoo",
-      auth: { user, pass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000
+    return buildTransport({
+      host: "smtp.mail.yahoo.com",
+      port: 587,
+      secure: false,
+      user,
+      pass
     });
   }
 
   // Generic SMTP fallback using host smtp.[domain]
   const domain = cleanUser.split("@")[1];
   if (domain) {
-    return nodemailer.createTransport({
+    return buildTransport({
       host: `smtp.${domain}`,
       port,
       secure: port === 465,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000
+      user,
+      pass
     });
   }
 
@@ -139,7 +167,7 @@ export async function sendEmailVerificationCode(toEmail, code) {
 
   const textContent = `Your EcoMind verification code is: ${code}\n\nThis code expires in 10 minutes.`;
 
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
 
   if (transporter) {
     const sendMailWithTimeout = async () => {
