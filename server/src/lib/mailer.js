@@ -176,7 +176,7 @@ export async function sendEmailVerificationCode(toEmail, code) {
       } else {
         const reason = classifyMailError(result.err);
         console.error(`[MAILER ERROR] Direct delivery failed (${reason}): ${result.err?.message ?? "Unknown error"}`);
-        return { success: false, sent: false, reason };
+        return { success: false, sent: false, reason, detail: String(result.err?.message ?? "").slice(0, 300) };
       }
     } catch (err) {
       const reason = classifyMailError(err);

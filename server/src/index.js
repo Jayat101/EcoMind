@@ -173,6 +173,7 @@ app.post("/api/auth/send-verification", async (req, res) => {
           sent: false,
           email: result.email,
           reason: result.reason ?? "smtp_error",
+          detail: result.detail ?? null,
           message: "We couldn't send the verification email right now. Please try again in a few minutes."
         });
       }
