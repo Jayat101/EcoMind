@@ -32,6 +32,12 @@ services:
         sync: false
       - key: EMAIL_PASS
         sync: false
+      # Render free blocks SMTP ports 25/465/587. Brevo's HTTPS API is the
+      # production delivery path; verify the sender in Brevo first.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
       # Google Sign-In (frontend, baked in at build time)
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false

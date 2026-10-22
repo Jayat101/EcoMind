@@ -138,9 +138,100 @@ function classifyMailError(err) {
   return "smtp_error";
 }
 
+function parseSender(from) {
+  const match = /^\s*(?:"?([^"<]*)"?\s*)?<([^>]+)>\s*$/.exec(from || "");
+  if (match) {
+    return {
+      name: (match[1] || "EcoMind Verification").trim() || "EcoMind Verification",
+      email: match[2].trim()
+    };
+  }
+  return {
+    name: "EcoMind Verification",
+    email: String(from || "").trim()
+  };
+}
+
+// Render's free tier blocks outbound SMTP (ports 25/465/587), so production
+// uses Brevo's HTTPS API instead. SMTP remains the local/paid-instance path.
+async function sendViaBrevo({ toEmail, subject, htmlContent, textContent, from }) {
+  const apiKey = (process.env.BREVO_API_KEY || "").trim();
+  if (!apiKey) {
+    return null;
+  }
+
+  const sender = parseSender(
+    process.env.BREVO_SENDER_EMAIL
+      ? `"EcoMind Verification" <${process.env.BREVO_SENDER_EMAIL.trim()}>`
+      : from
+  );
+  if (!sender.email) {
+    return {
+      success: false,
+      sent: false,
+      reason: "provider_config",
+      detail: "Set BREVO_SENDER_EMAIL or EMAIL_USER to a sender verified in Brevo."
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "content-type": "application/json",
+        accept: "application/json"
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email: toEmail }],
+        subject,
+        htmlContent,
+        textContent
+      }),
+      signal: controller.signal
+    });
+
+    const rawBody = await response.text();
+    if (!response.ok) {
+      let message = rawBody;
+      try {
+        const parsed = JSON.parse(rawBody);
+        message = parsed.message || parsed.error || rawBody;
+      } catch {
+        // keep raw body
+      }
+      const reason =
+        response.status === 401 || response.status === 403
+          ? "provider_auth"
+          : response.status === 429
+            ? "provider_rate_limited"
+            : "provider_error";
+      const detail = `Brevo HTTP ${response.status}: ${message}`.slice(0, 400);
+      console.error(`[MAILER ERROR] Brevo delivery failed (${reason}): ${detail}`);
+      return { success: false, sent: false, reason, detail };
+    }
+
+    console.log(`[MAILER SUCCESS] 📧 Brevo accepted verification email to ${toEmail}.`);
+    return { success: true, sent: true };
+  } catch (err) {
+    const reason = err?.name === "AbortError" ? "timeout" : "provider_network";
+    const detail = [err?.name, err?.message].filter(Boolean).join(" | ").slice(0, 400);
+    console.error(`[MAILER ERROR] Brevo delivery exception (${reason}): ${detail || "Unknown error"}`);
+    return { success: false, sent: false, reason, detail };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function sendEmailVerificationCode(toEmail, code) {
-  const defaultFrom = process.env.EMAIL_USER
-    ? `"EcoMind Verification" <${process.env.EMAIL_USER}>`
+  const senderEmail =
+    (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || "").trim();
+  const defaultFrom = senderEmail
+    ? `"EcoMind Verification" <${senderEmail}>`
     : '"EcoMind Verification" <no-reply@ecomind.org>';
   const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || defaultFrom;
   const subject = `Your EcoMind Verification Code: ${code}`;
@@ -166,6 +257,17 @@ export async function sendEmailVerificationCode(toEmail, code) {
   `;
 
   const textContent = `Your EcoMind verification code is: ${code}\n\nThis code expires in 10 minutes.`;
+
+  const brevoResult = await sendViaBrevo({
+    toEmail,
+    subject,
+    htmlContent,
+    textContent,
+    from
+  });
+  if (brevoResult) {
+    return brevoResult;
+  }
 
   const transporter = await getTransporter();
 
